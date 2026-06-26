@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Đăng ký tài khoản FruitFresh – Mua sắm hoa quả tươi sạch tiện lợi"/>
+  <meta name="robots" content="noindex"/>
+  <title>Đăng Ký – FruitFresh</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css"/>
+  <link rel="stylesheet" href="../../assets/css/global.css"/>
+  <link rel="stylesheet" href="../../assets/css/auth.css"/>
+  <link rel="stylesheet" href="../../assets/css/register.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍎</text></svg>"/>
+</head>
+<body class="auth-body">
+
+  <!-- ====== LEFT PANEL ====== -->
+  <div class="auth-left">
+    <div class="auth-brand">
+      <a href="/" class="auth-brand-logo">
+        <div class="logo-box">🍎</div>
+        <span class="brand-name">Fruit<span>Fresh</span></span>
+      </a>
+      <h1 class="auth-tagline">Gia Nhập Cộng Đồng<span class="highlight">FruitFresh!</span></h1>
+      <p class="auth-tagline-desc">
+        50.000+ thành viên đang tận hưởng hoa quả tươi sạch mỗi ngày.
+        Đăng ký ngay, nhận giảm 15% đơn đầu tiên!
+      </p>
+      <div class="auth-features">
+        <div class="auth-feature"><span class="auth-feature-icon">🎁</span>
+          <div class="auth-feature-text"><strong>Quà Tặng Thành Viên Mới</strong><span>Giảm 15% và freeship đơn đầu tiên</span></div>
+        </div>
+        <div class="auth-feature"><span class="auth-feature-icon">🏆</span>
+          <div class="auth-feature-text"><strong>Tích Điểm Đổi Quà</strong><span>Mua nhiều tích điểm, đổi quà hấp dẫn</span></div>
+        </div>
+        <div class="auth-feature"><span class="auth-feature-icon">🔔</span>
+          <div class="auth-feature-text"><strong>Ưu Đãi Độc Quyền</strong><span>Flash sale, giảm giá chỉ dành cho thành viên</span></div>
+        </div>
+        <div class="auth-feature"><span class="auth-feature-icon">📱</span>
+          <div class="auth-feature-text"><strong>Quản Lý Đơn Hàng Dễ Dàng</strong><span>Theo dõi đơn, lịch sử mua hàng mọi lúc</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-fruits" aria-hidden="true">
+      <span class="fruit-float">🍓</span>
+      <span class="fruit-float">🍋</span>
+      <span class="fruit-float">🍑</span>
+      <span class="fruit-float">🥝</span>
+    </div>
+  </div>
+
+  <!-- ====== RIGHT PANEL ====== -->
+  <div class="auth-right" id="auth-right">
+
+    <!-- =========================================
+         STEP 1: FORM ĐĂNG KÝ
+         ========================================= -->
+    <div class="auth-form-card" id="step-register">
+      <a href="/" class="back-home-link">← Về trang chủ</a>
+
+      <!-- Progress Bar -->
+      <div class="register-progress">
+        <div class="progress-step active" id="prog-1">
+          <div class="progress-dot">1</div>
+          <span>Thông tin</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="prog-2">
+          <div class="progress-dot">2</div>
+          <span>Xác nhận</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="prog-3">
+          <div class="progress-dot">✓</div>
+          <span>Hoàn tất</span>
+        </div>
+      </div>
+
+      <div class="auth-form-header">
+        <h2 class="auth-form-title">Tạo <span>Tài Khoản</span></h2>
+        <p class="auth-form-subtitle">Điền thông tin bên dưới để đăng ký tài khoản mới</p>
+      </div>
+
+      <div class="auth-alert hidden" id="register-alert" role="alert"></div>
+
+      <form id="register-form" novalidate autocomplete="on">
+
+        <!-- Họ tên -->
+        <div class="form-group">
+          <label class="form-label" for="reg-fullname">👤 Họ và Tên</label>
+          <div class="input-wrapper">
+            <input type="text" id="reg-fullname" name="fullName" class="form-input"
+              placeholder="Nguyễn Văn A" autocomplete="name" required/>
+          </div>
+          <p class="field-error" id="reg-fullname-error"></p>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label" for="reg-email">📧 Email <small style="color:var(--color-gray-400);font-weight:400;">(dùng để đăng nhập)</small></label>
+          <div class="input-wrapper">
+            <input type="email" id="reg-email" name="email" class="form-input"
+              placeholder="nhap@email.vn" autocomplete="email" required/>
+            <span class="email-check-icon" id="email-check-icon" style="position:absolute;right:16px;font-size:16px;"></span>
+          </div>
+          <p class="field-error" id="reg-email-error"></p>
+        </div>
+
+        <!-- Số điện thoại -->
+        <div class="form-group">
+          <label class="form-label" for="reg-phone">📱 Số Điện Thoại <small style="color:var(--color-gray-400);font-weight:400;">(tuỳ chọn)</small></label>
+          <div class="input-wrapper">
+            <input type="tel" id="reg-phone" name="phone" class="form-input"
+              placeholder="09xxxxxxxx" autocomplete="tel"/>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label" for="reg-password">🔒 Mật Khẩu</label>
+          <div class="input-wrapper">
+            <input type="password" id="reg-password" name="password" class="form-input has-toggle"
+              placeholder="Tối thiểu 8 ký tự" autocomplete="new-password" required/>
+            <button type="button" class="input-toggle" id="toggle-reg-password">👁️</button>
+          </div>
+          <!-- Password strength bar -->
+          <div class="password-strength" id="password-strength" style="display:none;">
+            <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+            <span class="strength-label" id="strength-label"></span>
+          </div>
+          <p class="field-error" id="reg-password-error"></p>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="form-group">
+          <label class="form-label" for="reg-confirm">🔒 Xác Nhận Mật Khẩu</label>
+          <div class="input-wrapper">
+            <input type="password" id="reg-confirm" name="confirmPassword" class="form-input has-toggle"
+              placeholder="Nhập lại mật khẩu" autocomplete="new-password" required/>
+            <button type="button" class="input-toggle" id="toggle-reg-confirm">👁️</button>
+          </div>
+          <p class="field-error" id="reg-confirm-error"></p>
+        </div>
+
+        <!-- Terms -->
+        <div class="form-group" style="margin-bottom:var(--space-6);">
+          <label class="checkbox-wrap" for="agree-terms">
+            <input type="checkbox" id="agree-terms" name="terms" required/>
+            Tôi đồng ý với <a href="#" style="color:var(--color-primary);">Điều khoản dịch vụ</a>
+            và <a href="#" style="color:var(--color-primary);">Chính sách bảo mật</a>
+          </label>
+          <p class="field-error" id="terms-error"></p>
+        </div>
+
+        <button type="submit" class="auth-btn" id="register-btn">
+          🚀 Đăng Ký & Nhận Mã OTP
+        </button>
+      </form>
+
+      <p class="auth-footer-text">
+        Đã có tài khoản? <a href="/pages/login/index.html" id="to-login-link">Đăng nhập</a>
+      </p>
+    </div>
+
+    <!-- =========================================
+         STEP 2: NHẬP OTP
+         ========================================= -->
+    <div class="auth-form-card hidden" id="step-otp">
+
+      <!-- Progress Bar -->
+      <div class="register-progress">
+        <div class="progress-step done" id="prog-1-otp">
+          <div class="progress-dot">✓</div><span>Thông tin</span>
+        </div>
+        <div class="progress-line progress-line-done"></div>
+        <div class="progress-step active" id="prog-2-otp">
+          <div class="progress-dot">2</div><span>Xác nhận</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="prog-3-otp">
+          <div class="progress-dot">3</div><span>Hoàn tất</span>
+        </div>
+      </div>
+
+      <div class="auth-form-header">
+        <div style="font-size:64px;text-align:center;margin-bottom:16px;">📬</div>
+        <h2 class="auth-form-title" style="text-align:center;">Kiểm Tra <span>Email!</span></h2>
+        <p class="auth-form-subtitle" style="text-align:center;">
+          Chúng tôi đã gửi mã xác nhận 6 số đến<br/>
+          <strong id="otp-email-display" style="color:var(--color-primary);">email@example.com</strong>
+        </p>
+      </div>
+
+      <div class="auth-alert hidden" id="otp-alert" role="alert"></div>
+
+      <!-- OTP Input -->
+      <div class="otp-input-group" id="otp-input-group">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-0" autocomplete="off"/>
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-1" autocomplete="off"/>
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-2" autocomplete="off"/>
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-3" autocomplete="off"/>
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-4" autocomplete="off"/>
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp-5" autocomplete="off"/>
+      </div>
+
+      <!-- Countdown timer -->
+      <div class="otp-timer" id="otp-timer-wrap">
+        <span id="otp-timer">Mã hết hạn sau: <b id="otp-countdown">10:00</b></span>
+      </div>
+
+      <button class="auth-btn" id="verify-otp-btn" style="margin-top:24px;">
+        ✅ Xác Nhận OTP
+      </button>
+
+      <div style="text-align:center;margin-top:20px;font-size:14px;color:var(--color-gray-500);">
+        Không nhận được mã?
+        <button id="resend-otp-btn" style="background:none;border:none;color:var(--color-primary);font-weight:700;cursor:pointer;font-size:14px;font-family:var(--font-family);" disabled>
+          Gửi lại
+        </button>
+        <span id="resend-timer-txt" style="color:var(--color-gray-400);font-size:13px;"></span>
+      </div>
+
+      <div style="text-align:center;margin-top:16px;">
+        <button id="back-to-register" style="background:none;border:none;color:var(--color-gray-500);font-size:13px;cursor:pointer;font-family:var(--font-family);">
+          ← Quay lại chỉnh sửa thông tin
+        </button>
+      </div>
+    </div>
+
+    <!-- =========================================
+         STEP 3: THÀNH CÔNG
+         ========================================= -->
+    <div class="auth-form-card hidden" id="step-success">
+      <div style="text-align:center;">
+        <div class="success-animation" id="success-anim">
+          <div class="success-check">✓</div>
+        </div>
+        <h2 class="auth-form-title" style="text-align:center;margin-top:24px;">
+          Chào Mừng Đến Với <span>FruitFresh!</span> 🎉
+        </h2>
+        <p style="color:var(--color-gray-500);font-size:15px;margin:12px 0 32px;">
+          Tài khoản của bạn đã được tạo thành công.<br/>
+          <strong id="success-name" style="color:var(--color-primary);">bạn</strong> ơi, hãy khám phá hoa quả tươi ngon nhé!
+        </p>
+        <div style="background:#f0fdf4;border-radius:16px;padding:20px;margin-bottom:28px;border:1.5px solid #bbf7d0;">
+          <p style="margin:0;font-size:14px;color:#166534;">🎁 <strong>Giảm 15%</strong> đơn hàng đầu tiên của bạn đang chờ!</p>
+        </div>
+        <a href="/" class="auth-btn" id="go-shopping-btn" style="text-decoration:none;display:flex;">
+          🛒 Bắt Đầu Mua Sắm
+        </a>
+        <p style="margin-top:16px;font-size:13px;color:var(--color-gray-400);">Đang tự động chuyển hướng sau <span id="redirect-countdown">5</span>s...</p>
+      </div>
+    </div>
+
+  </div><!-- /auth-right -->
+
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/register.js"></script>
+</body>
+</html>

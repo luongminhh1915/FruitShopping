@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="assets/css/global.css" />
   <link rel="stylesheet" href="assets/css/components.css" />
   <link rel="stylesheet" href="assets/css/home.css" />
+  <link rel="stylesheet" href="assets/css/profile.css" />
 
   <!-- Favicon emoji -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍎</text></svg>" />
@@ -335,6 +336,71 @@
 
 <!-- === TOAST NOTIFICATION === -->
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<!-- === PROFILE MODAL === -->
+<div class="profile-modal-overlay" id="profile-modal">
+  <div class="profile-modal-card">
+    <div class="profile-modal-header">
+      <h3 class="profile-modal-title">Thông Tin <span>Cá Nhân</span></h3>
+      <button class="profile-modal-close-btn" id="profile-modal-close">×</button>
+    </div>
+    
+    <div class="profile-alert hidden" id="profile-alert" role="alert" style="margin-bottom:20px; padding:12px; border-radius:12px; font-size:14px; font-weight:600; text-align:center;"></div>
+
+    <form id="profile-form" novalidate autocomplete="on">
+      <!-- Avatar Section -->
+      <div class="profile-avatar-section">
+        <div class="profile-avatar-display" id="profile-avatar-display">👤</div>
+        <input type="hidden" id="profile-avatar-input" name="avatar" value="👤" />
+        <div class="profile-avatar-picker-wrap">
+          <div class="profile-avatar-picker-title">Chọn hình quả đại diện:</div>
+          <div class="profile-emoji-grid">
+            <span class="profile-emoji-option selected" data-emoji="👤">👤</span>
+            <span class="profile-emoji-option" data-emoji="🍎">🍎</span>
+            <span class="profile-emoji-option" data-emoji="🍓">🍓</span>
+            <span class="profile-emoji-option" data-emoji="🍇">🍇</span>
+            <span class="profile-emoji-option" data-emoji="🥑">🥑</span>
+            <span class="profile-emoji-option" data-emoji="🍋">🍋</span>
+            <span class="profile-emoji-option" data-emoji="🥭">🥭</span>
+            <span class="profile-emoji-option" data-emoji="🍉">🍉</span>
+            <span class="profile-emoji-option" data-emoji="🍒">🍒</span>
+            <span class="profile-emoji-option" data-emoji="🥝">🥝</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email (Read-only) -->
+      <div class="profile-form-group">
+        <label class="profile-form-label" for="profile-email">📧 Email đăng nhập (Không thể đổi)</label>
+        <input type="email" id="profile-email" class="profile-form-input" disabled />
+      </div>
+
+      <!-- Họ tên -->
+      <div class="profile-form-group">
+        <label class="profile-form-label" for="profile-fullname">👤 Họ và Tên</label>
+        <input type="text" id="profile-fullname" class="profile-form-input" required />
+      </div>
+
+      <!-- Số điện thoại -->
+      <div class="profile-form-group">
+        <label class="profile-form-label" for="profile-phone">📱 Số Điện Thoại</label>
+        <input type="tel" id="profile-phone" class="profile-form-input" />
+      </div>
+
+      <!-- Địa chỉ -->
+      <div class="profile-form-group">
+        <label class="profile-form-label" for="profile-address">🏠 Địa Chỉ Giao Hàng</label>
+        <input type="text" id="profile-address" class="profile-form-input" />
+      </div>
+
+      <!-- Actions -->
+      <div class="profile-modal-actions">
+        <button type="button" class="btn-profile-cancel" id="profile-cancel-btn">Hủy</button>
+        <button type="submit" class="btn-profile-save" id="profile-save-btn">Lưu Thay Đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- === SCRIPTS === -->
 <script src="assets/js/api.js"></script>

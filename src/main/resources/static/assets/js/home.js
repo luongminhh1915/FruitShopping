@@ -7,25 +7,25 @@
    MOCK DATA (khi chưa có DB)
    ============================= */
 const MOCK_CATEGORIES = [
-  { categoryId: 1, name: 'Nhiệt đới',   image: null, emoji: '🥭' },
-  { categoryId: 2, name: 'Nhập khẩu',   image: null, emoji: '🍇' },
-  { categoryId: 3, name: 'Organic',      image: null, emoji: '🌿' },
+  { categoryId: 1, name: 'Nhiệt đới', image: null, emoji: '🥭' },
+  { categoryId: 2, name: 'Nhập khẩu', image: null, emoji: '🍇' },
+  { categoryId: 3, name: 'Organic', image: null, emoji: '🌿' },
   { categoryId: 4, name: 'Trái cây miền Nam', image: null, emoji: '🍈' },
-  { categoryId: 5, name: 'Thanh long',   image: null, emoji: '🐉' },
-  { categoryId: 6, name: 'Cam Quýt',     image: null, emoji: '🍊' },
-  { categoryId: 7, name: 'Dưa hấu',      image: null, emoji: '🍉' },
-  { categoryId: 8, name: 'Khô - Sấy',    image: null, emoji: '🍑' },
+  { categoryId: 5, name: 'Thanh long', image: null, emoji: '🐉' },
+  { categoryId: 6, name: 'Cam Quýt', image: null, emoji: '🍊' },
+  { categoryId: 7, name: 'Dưa hấu', image: null, emoji: '🍉' },
+  { categoryId: 8, name: 'Khô - Sấy', image: null, emoji: '🍑' },
 ];
 
 const MOCK_PRODUCTS = [
-  { productId:1, name:'Xoài Cát Chu Đồng Tháp', price:45000, unit:'kg', origin:'Đồng Tháp', categoryName:'Nhiệt đới', imgUrl:null, emoji:'🥭' },
-  { productId:2, name:'Thanh Long Ruột Đỏ Bình Thuận', price:35000, unit:'kg', origin:'Bình Thuận', categoryName:'Nhiệt đới', imgUrl:null, emoji:'🐉' },
-  { productId:3, name:'Nho Mẫu Đơn Đà Lạt', price:89000, unit:'kg', origin:'Đà Lạt', categoryName:'Organic', imgUrl:null, emoji:'🍇' },
-  { productId:4, name:'Dưa Hấu Không Hạt', price:25000, unit:'kg', origin:'Long An', categoryName:'Trái cây miền Nam', imgUrl:null, emoji:'🍉' },
-  { productId:5, name:'Cherry Mỹ Nhập Khẩu', price:320000, unit:'hộp 500g', origin:'USA', categoryName:'Nhập khẩu', imgUrl:null, emoji:'🍒' },
-  { productId:6, name:'Cam Sành Vĩnh Long', price:28000, unit:'kg', origin:'Vĩnh Long', categoryName:'Cam Quýt', imgUrl:null, emoji:'🍊' },
-  { productId:7, name:'Bơ Booth Đắk Lắk 034', price:65000, unit:'kg', origin:'Đắk Lắk', categoryName:'Nhiệt đới', imgUrl:null, emoji:'🥑' },
-  { productId:8, name:'Sầu Riêng Monthong Thái', price:185000, unit:'kg', origin:'Thái Lan', categoryName:'Nhập khẩu', imgUrl:null, emoji:'🌟' },
+  { productId: 1, name: 'Xoài Cát Chu Đồng Tháp', price: 45000, unit: 'kg', origin: 'Đồng Tháp', categoryName: 'Nhiệt đới', imgUrl: null, emoji: '🥭' },
+  { productId: 2, name: 'Thanh Long Ruột Đỏ Bình Thuận', price: 35000, unit: 'kg', origin: 'Bình Thuận', categoryName: 'Nhiệt đới', imgUrl: null, emoji: '🐉' },
+  { productId: 3, name: 'Nho Mẫu Đơn Đà Lạt', price: 89000, unit: 'kg', origin: 'Đà Lạt', categoryName: 'Organic', imgUrl: null, emoji: '🍇' },
+  { productId: 4, name: 'Dưa Hấu Không Hạt', price: 25000, unit: 'kg', origin: 'Long An', categoryName: 'Trái cây miền Nam', imgUrl: null, emoji: '🍉' },
+  { productId: 5, name: 'Cherry Mỹ Nhập Khẩu', price: 320000, unit: 'hộp 500g', origin: 'USA', categoryName: 'Nhập khẩu', imgUrl: null, emoji: '🍒' },
+  { productId: 6, name: 'Cam Sành Vĩnh Long', price: 28000, unit: 'kg', origin: 'Vĩnh Long', categoryName: 'Cam Quýt', imgUrl: null, emoji: '🍊' },
+  { productId: 7, name: 'Bơ Booth Đắk Lắk 034', price: 65000, unit: 'kg', origin: 'Đắk Lắk', categoryName: 'Nhiệt đới', imgUrl: null, emoji: '🥑' },
+  { productId: 8, name: 'Sầu Riêng Monthong Thái', price: 185000, unit: 'kg', origin: 'Thái Lan', categoryName: 'Nhập khẩu', imgUrl: null, emoji: '🌟' },
 ];
 
 /* =============================
@@ -303,7 +303,7 @@ async function filterByCategory(categoryId) {
    PRODUCT ACTION STUBS
    ============================= */
 function wishlistProduct(id) { showToast('❤️ Đã thêm vào danh sách yêu thích!', 'success'); }
-function quickView(id)       { showToast('🔍 Tính năng xem nhanh sẽ ra mắt sớm!', 'success'); }
+function quickView(id) { showToast('🔍 Tính năng xem nhanh sẽ ra mắt sớm!', 'success'); }
 
 /* =============================
    SEARCH
@@ -374,6 +374,221 @@ function initTicker() {
 }
 
 /* =============================
+   USER NAVBAR STATE
+   ============================= */
+function initUserNavbar() {
+  const token = localStorage.getItem('token');
+  const userJson = localStorage.getItem('user');
+  const loginBtn = document.getElementById('btn-login');
+  const registerBtn = document.getElementById('btn-register');
+  const navbarActions = document.querySelector('.navbar-actions');
+
+  if (token && userJson && navbarActions) {
+    try {
+      const user = JSON.parse(userJson);
+      if (loginBtn) loginBtn.style.display = 'none';
+      if (registerBtn) registerBtn.style.display = 'none';
+
+      // Remove existing profile nav if any
+      const existingProfile = document.getElementById('user-profile-nav');
+      if (existingProfile) existingProfile.remove();
+
+      // Create profile nav wrapper
+      const profileNav = document.createElement('div');
+      profileNav.id = 'user-profile-nav';
+      profileNav.className = 'user-profile-nav';
+      profileNav.style.display = 'flex';
+      profileNav.style.alignItems = 'center';
+      profileNav.style.gap = '12px';
+      profileNav.style.marginLeft = '12px';
+
+      const avatar = user.avatar || '👤';
+      const name = user.fullName || user.email;
+
+      profileNav.innerHTML = `
+        <span class="user-avatar-nav" style="font-size: 18px; cursor: pointer; user-select: none;">${avatar}</span>
+        <span class="user-name-nav" style="font-weight: 600; color: var(--color-dark); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">${name}</span>
+        <button class="btn-logout-nav" id="btn-logout" style="font-size: 13px; font-weight: 700; color: var(--color-accent); background: #fee2e2; padding: 6px 12px; border-radius: var(--radius-full); transition: var(--transition-fast);">Đăng Xuất</button>
+      `;
+
+      navbarActions.appendChild(profileNav);
+
+      // Add click listeners to profile trigger
+      profileNav.querySelector('.user-avatar-nav').addEventListener('click', openProfileModal);
+      profileNav.querySelector('.user-name-nav').addEventListener('click', openProfileModal);
+
+      document.getElementById('btn-logout')?.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.reload();
+      });
+    } catch (e) {
+      console.error('Error parsing user data from localStorage', e);
+    }
+  }
+}
+
+/* =============================
+   USER PROFILE MODAL LOGIC
+   ============================= */
+async function openProfileModal() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  const alertEl = document.getElementById('profile-alert');
+  if (alertEl) {
+    alertEl.className = 'profile-alert hidden';
+    alertEl.textContent = '';
+  }
+
+  try {
+    const response = await fetch('/api/users/profile', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const resJson = await response.json();
+    if (!response.ok) {
+      throw new Error(resJson.message || 'Không thể lấy thông tin cá nhân.');
+    }
+
+    const profileData = resJson.data;
+
+    // Populate fields
+    document.getElementById('profile-email').value = profileData.email;
+    document.getElementById('profile-fullname').value = profileData.fullName;
+    document.getElementById('profile-phone').value = profileData.phone || '';
+    document.getElementById('profile-address').value = profileData.address || '';
+    
+    const avatar = profileData.avatar || '👤';
+    document.getElementById('profile-avatar-input').value = avatar;
+    document.getElementById('profile-avatar-display').textContent = avatar;
+
+    // Select emoji in grid
+    document.querySelectorAll('.profile-emoji-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.emoji === avatar);
+    });
+
+    // Show modal
+    document.getElementById('profile-modal').classList.add('active');
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Lỗi: ' + err.message, 'error');
+  }
+}
+
+function initProfileModalEvents() {
+  const modal = document.getElementById('profile-modal');
+  const closeBtn = document.getElementById('profile-modal-close');
+  const cancelBtn = document.getElementById('profile-cancel-btn');
+  const form = document.getElementById('profile-form');
+
+  if (!modal) return;
+
+  // Close modal
+  const closeModal = () => modal.classList.remove('active');
+  closeBtn?.addEventListener('click', closeModal);
+  cancelBtn?.addEventListener('click', closeModal);
+
+  // Click outside card to close
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Emoji selection
+  document.querySelectorAll('.profile-emoji-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.profile-emoji-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      
+      const emoji = opt.dataset.emoji;
+      document.getElementById('profile-avatar-input').value = emoji;
+      document.getElementById('profile-avatar-display').textContent = emoji;
+    });
+  });
+
+  // Form submit
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const saveBtn = document.getElementById('profile-save-btn');
+    const alertEl = document.getElementById('profile-alert');
+    if (alertEl) {
+      alertEl.className = 'profile-alert hidden';
+      alertEl.textContent = '';
+    }
+
+    const token = localStorage.getItem('token');
+    const fullName = document.getElementById('profile-fullname').value.trim();
+    const phone = document.getElementById('profile-phone').value.trim();
+    const address = document.getElementById('profile-address').value.trim();
+    const avatar = document.getElementById('profile-avatar-input').value;
+
+    if (!fullName) {
+      if (alertEl) {
+        alertEl.textContent = '❌ Họ tên không được để trống!';
+        alertEl.className = 'profile-alert error';
+        alertEl.style.backgroundColor = '#fdf2f2';
+        alertEl.style.color = '#ef4444';
+      }
+      return;
+    }
+
+    // Set loading
+    if (saveBtn) {
+      saveBtn.classList.add('loading');
+      saveBtn.disabled = true;
+    }
+
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ fullName, phone, address, avatar })
+      });
+
+      const resJson = await response.json();
+      if (!response.ok) {
+        throw new Error(resJson.message || 'Cập nhật thất bại.');
+      }
+
+      // Update session local storage
+      const updatedUser = resJson.data;
+      localStorage.setItem('user', JSON.stringify({
+        userId: updatedUser.userId,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        roleName: updatedUser.roleName,
+        avatar: updatedUser.avatar
+      }));
+
+      // Refresh navbar state dynamically
+      initUserNavbar();
+
+      showToast('✅ Cập nhật thông tin thành công!');
+      closeModal();
+    } catch (err) {
+      console.error(err);
+      if (alertEl) {
+        alertEl.textContent = '❌ Lỗi: ' + err.message;
+        alertEl.className = 'profile-alert error';
+        alertEl.style.backgroundColor = '#fdf2f2';
+        alertEl.style.color = '#ef4444';
+      }
+    } finally {
+      if (saveBtn) {
+        saveBtn.classList.remove('loading');
+        saveBtn.disabled = false;
+      }
+    }
+  });
+}
+
+/* =============================
    INIT
    ============================= */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -392,6 +607,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Navbar
   initNavbarScroll();
+  initUserNavbar();
+  initProfileModalEvents();
 
   // Scroll to top
   initScrollTop();

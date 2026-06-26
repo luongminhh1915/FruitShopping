@@ -1,0 +1,158 @@
+/* ============================================
+   REGISTER PAGE - Extra Styles
+   ============================================ */
+
+/* Progress Steps */
+.register-progress {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-8);
+}
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+}
+.progress-step.active { color: var(--color-primary); }
+.progress-step.done   { color: var(--color-primary); }
+
+.progress-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid var(--color-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-gray-400);
+  background: white;
+  transition: all 0.3s ease;
+}
+.progress-step.active .progress-dot {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-50);
+  box-shadow: 0 0 0 4px var(--color-primary-50);
+}
+.progress-step.done .progress-dot {
+  border-color: var(--color-primary);
+  color: white;
+  background: var(--color-primary);
+}
+
+.progress-line {
+  flex: 1;
+  height: 2px;
+  background: var(--color-gray-200);
+  margin: 0 8px;
+  margin-bottom: 20px;
+  transition: background 0.3s ease;
+}
+.progress-line-done { background: var(--color-primary); }
+
+/* Password Strength */
+.password-strength {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.strength-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--color-gray-200);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.strength-fill {
+  height: 100%;
+  border-radius: 99px;
+  width: 0%;
+  transition: all 0.4s ease;
+}
+.strength-fill.weak   { width: 30%; background: #ef4444; }
+.strength-fill.medium { width: 60%; background: #f59e0b; }
+.strength-fill.strong { width: 100%; background: var(--color-primary); }
+
+.strength-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.strength-label.weak   { color: #ef4444; }
+.strength-label.medium { color: #f59e0b; }
+.strength-label.strong { color: var(--color-primary); }
+
+/* OTP Input Grid */
+.otp-input-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 24px 0;
+}
+.otp-digit {
+  width: 52px;
+  height: 60px;
+  border: 2.5px solid var(--color-gray-200);
+  border-radius: 14px;
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--color-dark);
+  font-family: 'Courier New', monospace;
+  outline: none;
+  transition: all 0.2s ease;
+  background: var(--color-white);
+}
+.otp-digit:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-50);
+  transform: scale(1.05);
+}
+.otp-digit.filled {
+  border-color: var(--color-primary);
+  background: var(--color-primary-50);
+  color: var(--color-primary-dark);
+}
+.otp-digit.error { border-color: #ef4444; background: #fef2f2; }
+
+/* OTP Timer */
+.otp-timer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-gray-500);
+}
+.otp-timer b { color: var(--color-primary); font-size: 15px; }
+.otp-timer.expired b { color: #ef4444; }
+
+/* Success Animation */
+.success-animation {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 8px 32px rgba(45,139,71,0.35);
+}
+.success-check {
+  color: white;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  animation: checkDraw 0.3s ease 0.3s both;
+}
+@keyframes popIn {
+  from { transform: scale(0) rotate(-20deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+}
+@keyframes checkDraw {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
