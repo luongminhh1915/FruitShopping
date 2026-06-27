@@ -130,16 +130,170 @@
           </div>
         </div>
         
-        <!-- Categories Tab -->
+        <!-- Categories Tab (Product Management) -->
         <div class="tab-pane" id="tab-categories">
-          <div class="blank-state">
-            <div class="blank-icon">🥑</div>
-            <h3>Danh Mục Loại Hoa Quả</h3>
-            <p>Trang này hiện đang để trống theo yêu cầu. Cấu trúc loại hoa quả và quản trị danh mục sẽ được tích hợp tại đây.</p>
+          <div class="admin-tab-header">
+            <h3 class="tab-subtitle">🥑 Quản lý Sản phẩm & Phân loại</h3>
+            <button class="btn-primary-admin" id="btn-add-product">➕ Thêm Sản phẩm</button>
+          </div>
+
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Danh mục</th>
+                  <th>Cửa hàng</th>
+                  <th>Giá</th>
+                  <th>Đơn vị</th>
+                  <th>Xuất xứ</th>
+                  <th>Trạng thái</th>
+                  <th style="text-align: center;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="product-table-body">
+                <!-- Dynamic rows -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- ==========================================
+       PRODUCT ADD/EDIT MODAL
+       ========================================== -->
+  <div class="admin-modal-overlay" id="product-modal">
+    <div class="admin-modal-card">
+      <div class="admin-modal-header">
+        <h3 id="product-modal-title">Thêm sản phẩm mới</h3>
+        <button class="admin-modal-close" id="product-modal-close">✕</button>
+      </div>
+      <form id="product-form" class="admin-modal-form">
+        <input type="hidden" id="form-product-id" />
+        
+        <div class="form-row">
+          <div class="form-group-admin">
+            <label for="form-name">Tên sản phẩm *</label>
+            <input type="text" id="form-name" required placeholder="Ví dụ: Xoài Cát Chu" />
+          </div>
+          <div class="form-group-admin">
+            <label>Ảnh sản phẩm (Tối đa 5 ảnh) *</label>
+            <div style="display: flex; gap: 8px; align-items: center; height: 50px;" id="slots-container">
+              <!-- Rendered dynamically -->
+            </div>
+            <input type="hidden" id="form-img" />
+            <input type="file" id="form-img-file" accept="image/*" style="display: none;" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group-admin">
+            <label for="form-category">Danh mục *</label>
+            <select id="form-category" required>
+              <option value="">-- Chọn danh mục --</option>
+            </select>
+          </div>
+          <div class="form-group-admin">
+            <label for="form-shop">Cửa hàng *</label>
+            <select id="form-shop" required>
+              <option value="">-- Chọn cửa hàng --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group-admin">
+            <label for="form-price">Giá bán (VND) *</label>
+            <input type="number" id="form-price" required min="0" placeholder="Ví dụ: 45000" />
+          </div>
+          <div class="form-group-admin">
+            <label for="form-unit">Đơn vị tính *</label>
+            <input type="text" id="form-unit" required placeholder="Ví dụ: kg, hộp 500g" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group-admin">
+            <label for="form-origin">Xuất xứ *</label>
+            <input type="text" id="form-origin" required placeholder="Ví dụ: Đồng Tháp, USA" />
+          </div>
+          <div class="form-group-admin">
+            <label for="form-status">Trạng thái *</label>
+            <select id="form-status" required>
+              <option value="1">Còn hàng / Tươi ngon</option>
+              <option value="0">Tạm hết hàng</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group-admin">
+          <label for="form-desc">Mô tả sản phẩm</label>
+          <textarea id="form-desc" rows="3" placeholder="Thông tin chi tiết về sản phẩm..."></textarea>
+        </div>
+
+        <div class="admin-modal-actions">
+          <button type="button" class="btn-cancel-admin" id="product-modal-cancel">Hủy</button>
+          <button type="submit" class="btn-save-admin">Lưu thay đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==========================================
+       QUICK VIEW MODAL (Customer style product details)
+       ========================================== -->
+  <div id="quick-view-modal" class="qv-overlay" role="dialog" aria-modal="true" aria-label="Xem chi tiết sản phẩm">
+    <div class="qv-card">
+      <button class="qv-close" id="qv-close" aria-label="Đóng">✕</button>
+
+      <div class="qv-loading" id="qv-loading">
+        <div class="qv-spinner"></div>
+      </div>
+
+      <div class="qv-body" id="qv-body" style="display:none;">
+        <!-- LEFT: Gallery -->
+        <div class="qv-gallery">
+          <div class="qv-main-img" id="qv-main-img"></div>
+          <div class="qv-thumbs" id="qv-thumbs"></div>
+        </div>
+
+        <!-- RIGHT: Product Info -->
+        <div class="qv-info">
+          <p class="qv-category" id="qv-category"></p>
+          <h2 class="qv-name" id="qv-name"></h2>
+
+          <div class="qv-rating-row">
+            <div class="qv-stars" id="qv-stars">★★★★★</div>
+            <span class="qv-rating-count" id="qv-rating-count">(0 đánh giá)</span>
+          </div>
+
+          <div class="qv-price-row">
+            <span class="qv-price" id="qv-price"></span>
+            <span class="qv-unit" id="qv-unit"></span>
+          </div>
+
+          <div class="qv-origin-row" id="qv-origin-row">
+            <span class="qv-origin-label">📍 Xuất xứ:</span>
+            <span class="qv-origin-value" id="qv-origin"></span>
+          </div>
+
+          <div class="qv-desc-block">
+            <h4 class="qv-desc-title">📝 Mô tả sản phẩm</h4>
+            <p class="qv-desc-text" id="qv-desc"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVIEWS SECTION -->
+      <div class="qv-reviews" id="qv-reviews" style="display:none;">
+        <h3 class="qv-reviews-title">⭐ Đánh giá từ khách hàng</h3>
+        <div class="qv-reviews-list" id="qv-reviews-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Scripts -->

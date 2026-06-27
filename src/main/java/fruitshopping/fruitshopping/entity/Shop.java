@@ -18,6 +18,7 @@ public class Shop {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User owner;
 
     @Column(name = "shop_name", nullable = false, length = 100)

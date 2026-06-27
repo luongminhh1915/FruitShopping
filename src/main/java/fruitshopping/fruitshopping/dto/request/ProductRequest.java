@@ -1,24 +1,17 @@
-package fruitshopping.fruitshopping.dto.response;
+package fruitshopping.fruitshopping.dto.request;
 
 import lombok.*;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class ProductResponse {
-
-    private Integer productId;
+public class ProductRequest {
     private String name;
+    private Integer categoryId;
+    private Integer shopId;
     private String imgUrl;
     private String description;
     private String origin;
     private String unit;
     private BigDecimal price;
     private Integer status;
-    private String categoryName;
-    private Integer categoryId;
-    private String shopName;
-    private Integer shopId;
-    private LocalDateTime createAt;
 }

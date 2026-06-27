@@ -34,8 +34,9 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index.html", "/favicon.ico", "/assets/**", "/pages/**").permitAll()
                         // Allow authentication APIs
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Allow viewing products
+                        // Allow viewing products and categories
                         .requestMatchers("/api/products/**").permitAll()
+                        .requestMatchers("/api/categories/**").permitAll()
                         // Any other requests must be authenticated
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session

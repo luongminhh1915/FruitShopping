@@ -91,7 +91,6 @@ function renderProductCard(product) {
           ${product.origin === 'USA' || product.origin === 'Thái Lan' ? '<span class="badge badge-orange">Nhập khẩu</span>' : ''}
         </div>
         <div class="product-actions">
-          <button class="product-action-btn" title="Yêu thích" onclick="wishlistProduct(${product.productId})">🤍</button>
           <button class="product-action-btn" title="Xem nhanh" onclick="quickView(${product.productId})">👁️</button>
         </div>
       </div>
@@ -273,11 +272,29 @@ async function loadNewProducts() {
   const container = document.getElementById('new-products-grid');
   if (!container) return;
 
-  let products = await API.getNewProducts(4).catch(() => null);
-  if (!products || products.length === 0) products = MOCK_PRODUCTS.slice(0, 4);
+  let products = null;
+  try {
+    const categories = await API.getAllCategories();
+    if (categories && categories.length > 0) {
+      const basketCat = categories.find(c => c.name.toLowerCase().includes('giỏ'));
+      if (basketCat) {
+        products = await API.getProductsByCategory(basketCat.categoryId, 4);
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi tải giỏ hoa quả:', err);
+  }
+
+  if (!products || products.length === 0) {
+    products = await API.getNewProducts(4).catch(() => null);
+  }
+  if (!products || products.length === 0) {
+    products = MOCK_PRODUCTS.slice(0, 4);
+  }
 
   container.innerHTML = products.map(renderProductCard).join('');
 }
+
 
 /* =============================
    FILTER BY CATEGORY
@@ -310,15 +327,15 @@ function wishlistProduct(id) { showToast('❤️ Đã thêm vào danh sách yêu
 
 // Mock gallery images for demo (will use imgUrl as primary)
 const QV_GALLERY_EMOJIS = {
-  '🥭': ['🥭', '🥭', '🌿', '📦'],
-  '🐉': ['🐉', '🐉', '🌿', '🏷️'],
-  '🍇': ['🍇', '🍇', '🌿', '🚜'],
-  '🍉': ['🍉', '🍉', '🌿', '🏷️'],
-  '🍒': ['🍒', '🍒', '🌿', '📦'],
-  '🍊': ['🍊', '🍊', '🌿', '🏷️'],
-  '🥑': ['🥑', '🥑', '🌿', '📦'],
-  '🌟': ['🌟', '🌟', '🌿', '🏷️'],
-  '🍎': ['🍎', '🍎', '🌿', '📦'],
+  '🥭': ['🥭', '🥭', '🌿', '📦', '🏷️'],
+  '🐉': ['🐉', '🐉', '🌿', '🏷️', '📦'],
+  '🍇': ['🍇', '🍇', '🌿', '🚜', '🏷️'],
+  '🍉': ['🍉', '🍉', '🌿', '🏷️', '📦'],
+  '🍒': ['🍒', '🍒', '🌿', '📦', '🏷️'],
+  '🍊': ['🍊', '🍊', '🌿', '🏷️', '🚜'],
+  '🥑': ['🥑', '🥑', '🌿', '📦', '🏷️'],
+  '🌟': ['🌟', '🌟', '🌿', '🏷️', '🚜'],
+  '🍎': ['🍎', '🍎', '🌿', '📦', '🏷️'],
 };
 
 const MOCK_REVIEWS = [
@@ -379,15 +396,22 @@ function populateQuickView(product) {
 
   // ---- Gallery ----
   const emoji = product.emoji || '🍎';
-  const galleryItems = product.imgUrl
-    ? [product.imgUrl, product.imgUrl, null, null]
-    : (QV_GALLERY_EMOJIS[emoji] || ['🍎', '🍎', '🌿', '📦']);
+  let galleryItems = [];
+  if (product.imgUrl) {
+    const urls = product.imgUrl.split(',').map(s => s.trim()).filter(Boolean);
+    galleryItems = [...urls];
+    while (galleryItems.length < 5) {
+      galleryItems.push(null);
+    }
+  } else {
+    galleryItems = (QV_GALLERY_EMOJIS[emoji] || ['🍎', '🍎', '🌿', '📦', '🏷️']);
+  }
 
   const mainImgEl = document.getElementById('qv-main-img');
   const thumbsEl = document.getElementById('qv-thumbs');
 
   function setMainImage(src, fallbackEmoji) {
-    if (src && src.startsWith('http')) {
+    if (src && (src.startsWith('http') || src.startsWith('/'))) {
       mainImgEl.innerHTML = `<img src="${src}" alt="product" />`;
     } else {
       mainImgEl.innerHTML = `<span style="font-size:7rem;">${src || fallbackEmoji || '🍎'}</span>`;
@@ -397,7 +421,7 @@ function populateQuickView(product) {
   setMainImage(galleryItems[0], emoji);
 
   thumbsEl.innerHTML = galleryItems.map((item, i) => {
-    const content = (item && item.startsWith('http'))
+    const content = (item && (item.startsWith('http') || item.startsWith('/')))
       ? `<img src="${item}" alt="thumb ${i}" />`
       : `<span style="font-size:1.7rem;">${item || '📦'}</span>`;
     return `<div class="qv-thumb${i === 0 ? ' active' : ''}" data-idx="${i}" data-src="${item || ''}">${content}</div>`;
@@ -583,6 +607,26 @@ function initUserNavbar() {
       const user = JSON.parse(userJson);
       if (loginBtn) loginBtn.style.display = 'none';
       if (registerBtn) registerBtn.style.display = 'none';
+
+      // If user is admin, change cart button to Admin dashboard button
+      const cartBtn = document.getElementById('cart-btn');
+      if (user.roleName === 'ADMIN' && cartBtn) {
+        const adminBtn = document.createElement('button');
+        adminBtn.className = 'navbar-cart-btn';
+        adminBtn.id = 'cart-btn';
+        adminBtn.title = 'Trang quản trị';
+        adminBtn.innerHTML = '🛠️ <span style="font-size: 13px; font-weight:bold; margin-left: 2px;">Admin</span>';
+        adminBtn.style.width = 'auto';
+        adminBtn.style.padding = '0 14px';
+        adminBtn.style.borderRadius = 'var(--radius-full)';
+        adminBtn.style.display = 'inline-flex';
+        adminBtn.style.alignItems = 'center';
+        adminBtn.style.gap = '4px';
+        adminBtn.onclick = () => {
+          window.location.href = 'pages/admin/index.html';
+        };
+        cartBtn.replaceWith(adminBtn);
+      }
 
       // Remove existing profile nav if any
       const existingProfile = document.getElementById('user-profile-nav');
