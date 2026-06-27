@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FruitFresh - Quản Trị Hệ Thống</title>
-  
+
   <!-- CSS -->
   <link rel="stylesheet" href="../../assets/css/variables.css" />
   <link rel="stylesheet" href="../../assets/css/global.css" />
   <link rel="stylesheet" href="../../assets/css/components.css" />
   <link rel="stylesheet" href="../../assets/css/admin.css" />
-  
+
   <!-- Favicon emoji -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
-  
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+
   <!-- Security check: immediately check token and admin role before page renders -->
   <script src="../../assets/js/auth.js"></script>
   <script>
@@ -27,6 +29,7 @@
     }
   </script>
 </head>
+
 <body>
 
   <div class="admin-container">
@@ -36,7 +39,7 @@
         <span class="brand-logo">🥑</span>
         <h1 class="brand-title">FruitFresh Admin</h1>
       </div>
-      
+
       <!-- Current Admin User Card -->
       <div class="admin-profile-card">
         <div class="admin-avatar" id="admin-avatar">👤</div>
@@ -45,7 +48,7 @@
           <span class="admin-role">Quản Trị Viên</span>
         </div>
       </div>
-      
+
       <!-- Menu Navigation -->
       <nav class="sidebar-menu">
         <ul>
@@ -75,20 +78,20 @@
           </li>
         </ul>
       </nav>
-      
+
       <!-- Sidebar Footer Links -->
       <div class="sidebar-footer">
         <a href="/" class="btn-back-home">
           <span class="menu-icon">🏠</span>
           <span class="menu-text">Quay lại Trang Chủ</span>
         </a>
-        <button class="btn-logout-admin" id="btn-logout-admin">
+        <button class="btn-logout-admin" id="btn-logout-admin" onclick="if(confirm('Bạn có chắc chắn muốn đăng xuất?')) Auth.logout();">
           <span class="menu-icon">🚪</span>
           <span class="menu-text">Đăng Xuất</span>
         </button>
       </div>
     </aside>
-    
+
     <!-- Main Content Area -->
     <main class="admin-main">
       <!-- Admin Page Header -->
@@ -100,18 +103,80 @@
           <span id="current-time-indicator" class="time-badge"></span>
         </div>
       </header>
-      
+
       <!-- Content Panes -->
       <div class="admin-content-area" id="admin-content-area">
         <!-- Users Tab -->
         <div class="tab-pane active" id="tab-users">
-          <div class="blank-state">
-            <div class="blank-icon">👥</div>
-            <h3>Danh Sách Người Dùng</h3>
-            <p>Trang này hiện đang để trống theo yêu cầu. Dữ liệu quản lý user sẽ được tích hợp tại đây.</p>
+          <!-- Stats Cards -->
+          <div class="admin-stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">👥</div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-total-users">0</span>
+                <span class="stat-label">Tổng người dùng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">👤</div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-customer-users">0</span>
+                <span class="stat-label">Khách hàng (Customer)</span>
+                <span class="stat-sub" id="stat-customer-active" style="font-size: 0.78rem; color: #16a34a; font-weight: 600; margin-top: 2px; display: block;">🟢 0 đang hoạt động</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(147, 51, 234, 0.1); color: #9333ea;">🏪</div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-seller-users">0</span>
+                <span class="stat-label">Người bán (Seller)</span>
+                <span class="stat-sub" id="stat-seller-active" style="font-size: 0.78rem; color: #16a34a; font-weight: 600; margin-top: 2px; display: block;">🟢 0 đang hoạt động</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #d97706;">👑</div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-admin-users">0</span>
+                <span class="stat-label">Quản trị viên</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Bar -->
+          <div class="admin-filter-bar">
+            <div class="search-box-admin">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="user-search-input" placeholder="Tìm kiếm theo tên, email, sđt..." />
+            </div>
+            <select id="user-role-filter" class="filter-select-admin">
+              <option value="">-- Tất cả vai trò --</option>
+              <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
+              <option value="SELLER">Người bán (SELLER)</option>
+              <option value="ADMIN">Quản trị viên (ADMIN)</option>
+            </select>
+          </div>
+
+          <!-- User Table -->
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Người dùng</th>
+                  <th>Số điện thoại</th>
+                  <th>Địa chỉ</th>
+                  <th>Vai trò</th>
+                  <th>Trạng thái</th>
+                  <th style="text-align: center;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="user-table-body">
+                <!-- Dynamic rows -->
+              </tbody>
+            </table>
           </div>
         </div>
-        
+
         <!-- Orders Tab -->
         <div class="tab-pane" id="tab-orders">
           <div class="blank-state">
@@ -120,7 +185,7 @@
             <p>Trang này hiện đang để trống theo yêu cầu. Dữ liệu quản lý đơn hàng sẽ được tích hợp tại đây.</p>
           </div>
         </div>
-        
+
         <!-- Revenue Tab -->
         <div class="tab-pane" id="tab-revenue">
           <div class="blank-state">
@@ -129,7 +194,7 @@
             <p>Trang này hiện đang để trống theo yêu cầu. Biểu đồ và thông số doanh thu sẽ được tích hợp tại đây.</p>
           </div>
         </div>
-        
+
         <!-- Categories Tab (Product Management) -->
         <div class="tab-pane" id="tab-categories">
           <div class="admin-tab-header">
@@ -173,7 +238,7 @@
       </div>
       <form id="product-form" class="admin-modal-form">
         <input type="hidden" id="form-product-id" />
-        
+
         <div class="form-row">
           <div class="form-group-admin">
             <label for="form-name">Tên sản phẩm *</label>
@@ -299,4 +364,5 @@
   <!-- Scripts -->
   <script src="../../assets/js/admin.js"></script>
 </body>
+
 </html>

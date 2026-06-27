@@ -30,7 +30,6 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         log.info("🚀 Checking database initialization...");
 
-
         // Fix column length in case it was created as VARCHAR(6) by Hibernate
         // previously
         try {
@@ -74,7 +73,8 @@ public class DataInitializer implements CommandLineRunner {
 
         // 4. Ensure default Categories exist
         if (categoryRepository.count() == 0) {
-            String[] defaultCats = {"Nhiệt đới", "Nhập khẩu", "Organic", "Trái cây miền Nam", "Cam Quýt", "Dưa hấu", "Khô - Sấy", "Giỏ hoa quả"};
+            String[] defaultCats = { "Nhiệt đới", "Nhập khẩu", "Organic", "Trái cây miền Nam", "Cam Quýt", "Dưa hấu",
+                    "Khô - Sấy", "Giỏ hoa quả" };
             for (String catName : defaultCats) {
                 log.info("➕ Creating default Category: {}", catName);
                 categoryRepository.save(Category.builder()
@@ -105,8 +105,6 @@ public class DataInitializer implements CommandLineRunner {
                     .sortOrder(0)
                     .build());
         }
-
-
 
         log.info("✅ Database initialization complete!");
     }

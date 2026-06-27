@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTimeIndicator();
   initLogout();
   initProductManagement();
+  initUserManagement();
 });
 
 
@@ -111,14 +112,14 @@ let productsList = [];
 let uploadedImages = ['', '', '', '', ''];
 let activeSlotIdx = 0;
 
-window.renderUploadSlots = function() {
+window.renderUploadSlots = function () {
   const container = document.getElementById('slots-container');
   if (!container) return;
 
   container.innerHTML = uploadedImages.map((src, idx) => {
     if (src) {
       const isUrl = src.startsWith('http') || src.startsWith('/');
-      const content = isUrl 
+      const content = isUrl
         ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;" />`
         : `<span style="font-size: 1.5rem; display:flex;align-items:center;justify-content:center;">${src}</span>`;
       return `
@@ -142,7 +143,7 @@ window.renderUploadSlots = function() {
   if (input) input.value = val;
 };
 
-window.triggerSlotUpload = function(idx) {
+window.triggerSlotUpload = function (idx) {
   activeSlotIdx = idx;
   const input = prompt("Nhập Emoji (ví dụ 🥭) hoặc URL ảnh nếu muốn. Để trống để tải ảnh từ máy tính:");
   if (input !== null) {
@@ -157,7 +158,7 @@ window.triggerSlotUpload = function(idx) {
   document.getElementById('form-img-file')?.click();
 };
 
-window.deleteSlotImage = function(e, idx) {
+window.deleteSlotImage = function (e, idx) {
   e.stopPropagation(); // Avoid triggering upload
   uploadedImages[idx] = '';
   renderUploadSlots();
@@ -181,13 +182,13 @@ async function loadCategories() {
     const res = await fetch('/api/categories/all', { headers });
     if (res.ok) {
       const json = await res.json();
-      categoriesList = (json.data || []).filter(c => 
-        c.name.toLowerCase().includes('các loại') || 
+      categoriesList = (json.data || []).filter(c =>
+        c.name.toLowerCase().includes('các loại') ||
         c.name.toLowerCase().includes('giỏ')
       );
       const select = document.getElementById('form-category');
       if (select) {
-        select.innerHTML = '<option value="">-- Chọn danh mục --</option>' + 
+        select.innerHTML = '<option value="">-- Chọn danh mục --</option>' +
           categoriesList.map(c => `<option value="${c.categoryId}">${c.name}</option>`).join('');
       }
     }
@@ -204,7 +205,7 @@ async function loadShops() {
       shopsList = json.data || [];
       const select = document.getElementById('form-shop');
       if (select) {
-        select.innerHTML = '<option value="">-- Chọn cửa hàng --</option>' + 
+        select.innerHTML = '<option value="">-- Chọn cửa hàng --</option>' +
           shopsList.map(s => `<option value="${s.shopId}">${s.shopName}</option>`).join('');
       }
     }
@@ -236,7 +237,7 @@ function renderProductsTable() {
   }
 
   tbody.innerHTML = productsList.map(p => {
-    const statusBadge = p.status === 1 
+    const statusBadge = p.status === 1
       ? `<span class="badge-admin badge-admin-success">Tươi ngon / Còn hàng</span>`
       : `<span class="badge-admin badge-admin-danger">Tạm hết hàng</span>`;
 
@@ -394,13 +395,13 @@ function initModalEvents() {
   });
 }
 
-window.editProduct = function(id) {
+window.editProduct = function (id) {
   const p = productsList.find(item => item.productId === id);
   if (!p) return;
 
   document.getElementById('form-product-id').value = p.productId;
   document.getElementById('form-name').value = p.name || '';
-  
+
   // Populate upload slots from comma-separated string
   const imgStr = p.imgUrl || '';
   const parts = imgStr.split(',').map(s => s.trim()).filter(Boolean);
@@ -419,13 +420,13 @@ window.editProduct = function(id) {
   document.getElementById('form-desc').value = p.description || '';
 
   document.getElementById('product-modal-title').textContent = 'Sửa thông tin sản phẩm';
-  
+
   const modal = document.getElementById('product-modal');
   modal?.classList.add('active');
   document.body.style.overflow = 'hidden';
 };
 
-window.deleteProduct = async function(id) {
+window.deleteProduct = async function (id) {
   if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
 
   const token = localStorage.getItem('token');
@@ -479,7 +480,7 @@ const MOCK_REVIEWS = [
   { name: 'Lê Văn Dũng', avatar: '🧑', stars: 5, comment: 'Xuất xứ rõ ràng, vệ sinh an toàn thực phẩm. Rất tin tưởng shop!', date: '3 tuần trước' },
 ];
 
-window.quickViewProduct = async function(id) {
+window.quickViewProduct = async function (id) {
   const modal = document.getElementById('quick-view-modal');
   const loading = document.getElementById('qv-loading');
   const body = document.getElementById('qv-body');
@@ -568,7 +569,7 @@ function populateQuickView(product) {
   // ---- Info ----
   document.getElementById('qv-category').textContent = product.categoryName || '';
   document.getElementById('qv-name').textContent = product.name || '';
-  
+
   const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price);
   document.getElementById('qv-price').textContent = priceFormatted;
   document.getElementById('qv-unit').textContent = `/ ${product.unit || 'kg'}`;
@@ -613,7 +614,7 @@ function populateQuickView(product) {
   reviews.style.display = 'block';
 }
 
-window.closeQuickView = function() {
+window.closeQuickView = function () {
   const modal = document.getElementById('quick-view-modal');
   if (modal) {
     modal.classList.remove('open');
@@ -636,4 +637,223 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') window.closeQuickView();
   });
 });
+
+
+/* ==========================================================================
+   USER MANAGEMENT LOGIC FOR ADMIN
+   ========================================================================== */
+let usersList = [];
+let userRolesList = [];
+
+async function initUserManagement() {
+  const searchInput = document.getElementById('user-search-input');
+  const roleFilter = document.getElementById('user-role-filter');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', renderUsersTable);
+  }
+  if (roleFilter) {
+    roleFilter.addEventListener('change', renderUsersTable);
+  }
+
+  await Promise.all([
+    loadUserRoles(),
+    loadUsers()
+  ]);
+}
+
+async function loadUserRoles() {
+  try {
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch('/api/admin/users/roles', { headers });
+    if (res.ok) {
+      const json = await res.json();
+      userRolesList = json.data || [];
+    }
+  } catch (err) {
+    console.error('Lỗi tải vai trò:', err);
+  }
+}
+
+async function loadUsers() {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const res = await fetch('/api/admin/users', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      usersList = json.data || [];
+      updateUserStats();
+      renderUsersTable();
+    } else {
+      console.error('Lỗi lấy danh sách người dùng:', res.statusText);
+    }
+  } catch (err) {
+    console.error('Lỗi tải danh sách người dùng:', err);
+  }
+}
+
+function updateUserStats() {
+  const totalEl = document.getElementById('stat-total-users');
+  const customerEl = document.getElementById('stat-customer-users');
+  const customerActiveEl = document.getElementById('stat-customer-active');
+  const sellerEl = document.getElementById('stat-seller-users');
+  const sellerActiveEl = document.getElementById('stat-seller-active');
+  const adminEl = document.getElementById('stat-admin-users');
+
+  const customers = usersList.filter(u => u.roleName === 'CUSTOMER');
+  const activeCustomers = customers.filter(u => u.isActive).length;
+
+  const sellers = usersList.filter(u => u.roleName === 'SELLER');
+  const activeSellers = sellers.filter(u => u.isActive).length;
+
+  const admins = usersList.filter(u => u.roleName === 'ADMIN');
+
+  if (totalEl) totalEl.textContent = usersList.length;
+  if (customerEl) customerEl.textContent = customers.length;
+  if (customerActiveEl) customerActiveEl.textContent = `🟢 ${activeCustomers} đang hoạt động`;
+  if (sellerEl) sellerEl.textContent = sellers.length;
+  if (sellerActiveEl) sellerActiveEl.textContent = `🟢 ${activeSellers} đang hoạt động`;
+  if (adminEl) adminEl.textContent = admins.length;
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('user-table-body');
+  if (!tbody) return;
+
+  const searchVal = (document.getElementById('user-search-input')?.value || '').toLowerCase().trim();
+  const roleVal = document.getElementById('user-role-filter')?.value || '';
+
+  const filteredUsers = usersList.filter(user => {
+    const matchSearch = !searchVal || 
+      (user.fullName && user.fullName.toLowerCase().includes(searchVal)) ||
+      (user.email && user.email.toLowerCase().includes(searchVal)) ||
+      (user.phone && user.phone.toLowerCase().includes(searchVal));
+
+    const matchRole = !roleVal || user.roleName === roleVal;
+
+    return matchSearch && matchRole;
+  });
+
+  if (filteredUsers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px;">Không tìm thấy người dùng nào phù hợp.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filteredUsers.map(u => {
+    const avatarContent = (u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('/')))
+      ? `<img src="${u.avatar}" alt="avatar" />`
+      : `<span>${u.avatar || '👤'}</span>`;
+
+    let roleBadge = `<span class="badge-role badge-role-customer" style="background: rgba(59,130,246,0.15); color: #2563eb; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">👤 Customer</span>`;
+    if (u.roleName === 'ADMIN') {
+      roleBadge = `<span class="badge-role badge-role-admin" style="background: rgba(245,158,11,0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">👑 Admin</span>`;
+    } else if (u.roleName === 'SELLER') {
+      roleBadge = `<span class="badge-role badge-role-seller" style="background: rgba(147,51,234,0.15); color: #9333ea; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">🏪 Seller</span>`;
+    }
+
+    const statusBadge = u.isActive
+      ? `<span class="badge-admin badge-admin-success">🟢 Hoạt động</span>`
+      : `<span class="badge-admin badge-admin-danger">🔴 Đã khóa</span>`;
+
+    const toggleStatusBtn = u.isActive
+      ? `<button class="btn-action-delete" title="Khóa tài khoản" onclick="toggleUserStatus(${u.userId}, false)" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700;">🔒 Khóa</button>`
+      : `<button class="btn-action-edit" title="Mở khóa tài khoản" onclick="toggleUserStatus(${u.userId}, true)" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700;">🔓 Mở khóa</button>`;
+
+    // Role switcher toggle button between SELLER and CUSTOMER
+    const targetRoleName = u.roleName === 'SELLER' ? 'CUSTOMER' : 'SELLER';
+    const targetRoleObj = userRolesList.find(r => r.roleName === targetRoleName);
+    let roleSwitchHtml = '';
+    if (targetRoleObj) {
+      roleSwitchHtml = `<button class="btn-action-view" title="Chuyển vai trò sang ${targetRoleName}" onclick="changeUserRole(${u.userId}, ${targetRoleObj.roleId}, '${targetRoleName}')" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700; background: rgba(245, 158, 11, 0.1); color: #d97706;">🔄 Sang ${targetRoleName}</button>`;
+    }
+
+    return `
+      <tr>
+        <td><strong>#${u.userId}</strong></td>
+        <td>
+          <div class="user-profile-cell">
+            <div class="user-avatar-circle">${avatarContent}</div>
+            <div class="user-details">
+              <span class="user-name-text">${u.fullName || 'N/A'}</span>
+              <span class="user-email-text">${u.email}</span>
+            </div>
+          </div>
+        </td>
+        <td>${u.phone || '—'}</td>
+        <td>${u.address || '—'}</td>
+        <td>${roleBadge}</td>
+        <td>${statusBadge}</td>
+        <td style="text-align: center;">
+          ${u.roleName === 'ADMIN' ? '<span style="color: #94a3b8; font-weight: 600;">—</span>' : `${toggleStatusBtn} ${roleSwitchHtml}`}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.toggleUserStatus = async function (userId, isActivating) {
+  const actionText = isActivating ? 'mở khóa' : 'khóa';
+  if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản này?`)) return;
+
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Thao tác thất bại!');
+    }
+
+    alert(`Đã ${actionText} tài khoản thành công!`);
+    loadUsers();
+  } catch (err) {
+    console.error(err);
+    alert('❌ Lỗi: ' + err.message);
+  }
+};
+
+window.changeUserRole = async function (userId, roleId, roleName) {
+  if (!confirm(`Bạn có chắc chắn muốn đổi vai trò tài khoản này thành ${roleName}?`)) return;
+
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}/role`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ roleId })
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Thay đổi vai trò thất bại!');
+    }
+
+    alert(`Đã cập nhật vai trò người dùng thành ${roleName}!`);
+    loadUsers();
+  } catch (err) {
+    console.error(err);
+    alert('❌ Lỗi: ' + err.message);
+  }
+};
+
 

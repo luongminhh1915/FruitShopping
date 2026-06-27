@@ -42,9 +42,11 @@ public class AuthServiceImpl implements AuthService {
     private static final int OTP_LENGTH = 6;
     private static final int OTP_EXPIRE_MINUTES = 10;
 
-    /* =============================================
-       ĐĂNG NHẬP
-       ============================================= */
+    /*
+     * =============================================
+     * ĐĂNG NHẬP
+     * =============================================
+     */
     @Override
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().trim().toLowerCase();
@@ -52,8 +54,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             log.info("Attempting authentication for email: {}", email);
             var authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, request.getPassword())
-            );
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword()));
             log.info("Authentication check successful for email: {}", email);
         } catch (Exception e) {
             log.error("Authentication failed for email: {} due to: {}", email, e.getMessage(), e);
@@ -73,9 +74,11 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(token, user);
     }
 
-    /* =============================================
-       ĐĂNG KÝ – Bước 1: Gửi OTP về email
-       ============================================= */
+    /*
+     * =============================================
+     * ĐĂNG KÝ – Bước 1: Gửi OTP về email
+     * =============================================
+     */
     @Override
     @Transactional
     public void register(RegisterRequest request) {
@@ -109,14 +112,15 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         otpRepository.save(otpEntity);
 
-        // Lưu pending user data vào một OTP đặc biệt (encode password và lưu vào email field khác)
+        // Lưu pending user data vào một OTP đặc biệt (encode password và lưu vào email
+        // field khác)
         // Cách đơn giản: lưu hashed password và fullName vào DB temp
         // Ta sẽ dùng một OTP thứ 2 để lưu user data tạm
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         String userData = request.getFullName() + "|" + encodedPassword + "|" + request.getPhone();
         OtpVerification dataHolder = OtpVerification.builder()
                 .email(email)
-                .otpCode(userData)  // dùng field otpCode để lưu data tạm
+                .otpCode(userData) // dùng field otpCode để lưu data tạm
                 .otpType("REGISTER_DATA")
                 .isUsed(false)
                 .expiresAt(LocalDateTime.now().plusMinutes(30))
@@ -129,9 +133,11 @@ public class AuthServiceImpl implements AuthService {
         log.info("📧 Đã tạo OTP {} cho email: {} (expires: {} phút)", otp, email, OTP_EXPIRE_MINUTES);
     }
 
-    /* =============================================
-       ĐĂNG KÝ – Bước 2: Xác nhận OTP
-       ============================================= */
+    /*
+     * =============================================
+     * ĐĂNG KÝ – Bước 2: Xác nhận OTP
+     * =============================================
+     */
     @Override
     @Transactional
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
@@ -159,9 +165,9 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Dữ liệu đăng ký không tồn tại!"));
 
         String[] parts = dataHolder.getOtpCode().split("\\|", 3);
-        String fullName     = parts.length > 0 ? parts[0] : email;
+        String fullName = parts.length > 0 ? parts[0] : email;
         String passwordHash = parts.length > 1 ? parts[1] : "";
-        String phone        = parts.length > 2 ? parts[2] : "";
+        String phone = parts.length > 2 ? parts[2] : "";
 
         // Tạo User
         Role customerRole = roleRepository.findByRoleName("CUSTOMER")
@@ -191,9 +197,11 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(token, newUser);
     }
 
-    /* =============================================
-       GỬI LẠI OTP
-       ============================================= */
+    /*
+     * =============================================
+     * GỬI LẠI OTP
+     * =============================================
+     */
     @Override
     @Transactional
     public void resendOtp(String email, String otpType) {
@@ -206,7 +214,8 @@ public class AuthServiceImpl implements AuthService {
         String fullName = "bạn";
         if (dataHolderOpt.isPresent()) {
             String[] parts = dataHolderOpt.get().getOtpCode().split("\\|", 3);
-            if (parts.length > 0) fullName = parts[0];
+            if (parts.length > 0)
+                fullName = parts[0];
         }
 
         // Xóa OTP cũ
@@ -227,9 +236,11 @@ public class AuthServiceImpl implements AuthService {
         log.info("🔄 Đã gửi lại OTP cho: {}", email);
     }
 
-    /* =============================================
-       HELPERS
-       ============================================= */
+    /*
+     * =============================================
+     * HELPERS
+     * =============================================
+     */
     private String generateOtp() {
         SecureRandom random = new SecureRandom();
         int num = 100000 + random.nextInt(900000);
