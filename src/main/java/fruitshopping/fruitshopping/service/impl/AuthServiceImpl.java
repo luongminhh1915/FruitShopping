@@ -51,25 +51,27 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Email hoặc mật khẩu không chính xác!"));
+
+        if (user.getIsActive() != null && !user.getIsActive()) {
+            throw new BadCredentialsException("Tài khoản của bạn đã bị khóa!");
+        }
+
         try {
             log.info("Attempting authentication for email: {}", email);
             var authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, request.getPassword()));
             log.info("Authentication check successful for email: {}", email);
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            throw new BadCredentialsException("Tài khoản của bạn đã bị khóa!");
         } catch (Exception e) {
             log.error("Authentication failed for email: {} due to: {}", email, e.getMessage(), e);
-            throw new BadCredentialsException("Email hoặc mật khẩu không đúng! Chi tiết: " + e.getMessage());
+            throw new BadCredentialsException("Email hoặc mật khẩu không chính xác!");
         }
 
         var userDetails = userDetailsService.loadUserByUsername(email);
         String token = jwtService.generateToken(userDetails);
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadCredentialsException("Tài khoản không tồn tại!"));
-
-        if (!user.getIsActive()) {
-            throw new BadCredentialsException("Tài khoản đã bị khóa. Liên hệ hỗ trợ!");
-        }
 
         return buildAuthResponse(token, user);
     }

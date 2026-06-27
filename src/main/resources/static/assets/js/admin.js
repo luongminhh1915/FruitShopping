@@ -760,8 +760,8 @@ function renderUsersTable() {
     }
 
     const statusBadge = u.isActive
-      ? `<span class="badge-admin badge-admin-success">🟢 Hoạt động</span>`
-      : `<span class="badge-admin badge-admin-danger">🔴 Đã khóa</span>`;
+      ? `<span class="badge-admin badge-admin-success" style="background: rgba(16, 185, 129, 0.15); color: #16a34a; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">🟢 Hoạt động</span>`
+      : `<span class="badge-admin badge-admin-danger" style="background: rgba(239, 68, 68, 0.15); color: #dc2626; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">🔴 Đã khóa</span>`;
 
     const toggleStatusBtn = u.isActive
       ? `<button class="btn-action-delete" title="Khóa tài khoản" onclick="toggleUserStatus(${u.userId}, false)" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700;">🔒 Khóa</button>`
@@ -770,10 +770,8 @@ function renderUsersTable() {
     // Role switcher toggle button between SELLER and CUSTOMER
     const targetRoleName = u.roleName === 'SELLER' ? 'CUSTOMER' : 'SELLER';
     const targetRoleObj = userRolesList.find(r => r.roleName === targetRoleName);
-    let roleSwitchHtml = '';
-    if (targetRoleObj) {
-      roleSwitchHtml = `<button class="btn-action-view" title="Chuyển vai trò sang ${targetRoleName}" onclick="changeUserRole(${u.userId}, ${targetRoleObj.roleId}, '${targetRoleName}')" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700; background: rgba(245, 158, 11, 0.1); color: #d97706;">🔄 Sang ${targetRoleName}</button>`;
-    }
+    const targetRoleId = targetRoleObj ? targetRoleObj.roleId : (targetRoleName === 'SELLER' ? 2 : 3);
+    const roleSwitchHtml = `<button class="btn-action-view" title="Chuyển vai trò sang ${targetRoleName}" onclick="changeUserRole(${u.userId}, ${targetRoleId}, '${targetRoleName}')" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 700; background: rgba(245, 158, 11, 0.1); color: #d97706;">🔄 Sang ${targetRoleName}</button>`;
 
     return `
       <tr>
@@ -800,9 +798,6 @@ function renderUsersTable() {
 }
 
 window.toggleUserStatus = async function (userId, isActivating) {
-  const actionText = isActivating ? 'mở khóa' : 'khóa';
-  if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản này?`)) return;
-
   const token = localStorage.getItem('token');
   if (!token) return;
 
@@ -819,8 +814,13 @@ window.toggleUserStatus = async function (userId, isActivating) {
       throw new Error(json.message || 'Thao tác thất bại!');
     }
 
-    alert(`Đã ${actionText} tài khoản thành công!`);
-    loadUsers();
+    const updatedUser = json.data;
+    const targetInList = usersList.find(u => u.userId === userId);
+    if (targetInList && updatedUser) {
+      targetInList.isActive = updatedUser.isActive;
+    }
+    updateUserStats();
+    renderUsersTable();
   } catch (err) {
     console.error(err);
     alert('❌ Lỗi: ' + err.message);
@@ -828,8 +828,6 @@ window.toggleUserStatus = async function (userId, isActivating) {
 };
 
 window.changeUserRole = async function (userId, roleId, roleName) {
-  if (!confirm(`Bạn có chắc chắn muốn đổi vai trò tài khoản này thành ${roleName}?`)) return;
-
   const token = localStorage.getItem('token');
   if (!token) return;
 
@@ -848,8 +846,14 @@ window.changeUserRole = async function (userId, roleId, roleName) {
       throw new Error(json.message || 'Thay đổi vai trò thất bại!');
     }
 
-    alert(`Đã cập nhật vai trò người dùng thành ${roleName}!`);
-    loadUsers();
+    const updatedUser = json.data;
+    const targetInList = usersList.find(u => u.userId === userId);
+    if (targetInList && updatedUser) {
+      targetInList.roleId = updatedUser.roleId;
+      targetInList.roleName = updatedUser.roleName;
+    }
+    updateUserStats();
+    renderUsersTable();
   } catch (err) {
     console.error(err);
     alert('❌ Lỗi: ' + err.message);
