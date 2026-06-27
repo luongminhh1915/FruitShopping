@@ -754,18 +754,31 @@ const QV_GALLERY_EMOJIS = {
   '🍎': ['🍎', '🍎', '🌿', '📦', '🏷️'],
 };
 
-const PRODUCT_REVIEWS = {};
+function getStoredReviewsMap() {
+  try {
+    const raw = localStorage.getItem('STORED_PRODUCT_REVIEWS');
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function saveStoredReviewsMap(map) {
+  try {
+    localStorage.setItem('STORED_PRODUCT_REVIEWS', JSON.stringify(map));
+  } catch (e) { console.error(e); }
+}
 
 function getProductReviews(product) {
   if (!product) return [];
   const id = product.productId;
-  if (!PRODUCT_REVIEWS[id]) {
-    PRODUCT_REVIEWS[id] = [
+  const map = getStoredReviewsMap();
+  if (!map[id]) {
+    map[id] = [
       { name: 'Nguyễn Thị Lan', avatar: '👩', stars: 5, comment: `Sản phẩm ${product.name} tươi ngon, đóng gói cẩn thận. Giao hàng nhanh, sẽ mua lại!`, date: '3 ngày trước' },
       { name: 'Trần Văn Hùng', avatar: '👨', stars: 5, comment: `Chất lượng ${product.name} rất tốt, đúng như mô tả. Rất hài lòng.`, date: '1 tuần trước' }
     ];
+    saveStoredReviewsMap(map);
   }
-  return PRODUCT_REVIEWS[id];
+  return map[id];
 }
 
 let _qvCurrentProduct = null;
@@ -970,8 +983,15 @@ window.submitProductReview = function () {
     date: 'Vừa xong'
   };
 
-  const prodReviews = getProductReviews(_qvCurrentProduct);
-  prodReviews.unshift(newReview);
+  const map = getStoredReviewsMap();
+  const prodId = _qvCurrentProduct.productId;
+  if (!map[prodId]) {
+    map[prodId] = getProductReviews(_qvCurrentProduct);
+  }
+  map[prodId].unshift(newReview);
+  saveStoredReviewsMap(map);
+
+  const prodReviews = map[prodId];
   input.value = '';
 
   const reviewsList = document.getElementById('qv-reviews-list');
