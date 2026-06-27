@@ -14,4 +14,6 @@ public interface ProductService {
     List<ProductResponse> getProductsByCategory(Integer categoryId, int limit);
 
     Page<ProductResponse> searchProducts(String keyword, int page, int size);
+
+    ProductResponse getProductById(Integer id);
 }

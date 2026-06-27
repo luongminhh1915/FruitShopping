@@ -5,9 +5,14 @@
 const API_BASE = 'http://localhost:8080/api';
 
 document.addEventListener('DOMContentLoaded', () => {
-  // If already logged in, redirect to homepage
+  // If already logged in, redirect to appropriate page
   if (Auth.isLoggedIn()) {
-    window.location.href = '/';
+    const user = Auth.getUser();
+    if (user && user.roleName === 'ADMIN') {
+      window.location.href = '/pages/admin/index.html';
+    } else {
+      window.location.href = '/';
+    }
     return;
   }
 
@@ -21,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initLoginToggles() {
   const toggleBtn = document.getElementById('toggle-login-password');
   const input = document.getElementById('login-password');
-  
+
   if (toggleBtn && input) {
     toggleBtn.addEventListener('click', () => {
       const isPass = input.type === 'password';
@@ -96,7 +101,7 @@ function initLoginForm() {
       showAlert('Đăng nhập thành công! Đang chuyển hướng...', 'success');
 
       const authData = resJson.data || resJson;
-      
+
       // Save session
       Auth.saveSession(authData.token, {
         userId: authData.userId,
@@ -106,9 +111,13 @@ function initLoginForm() {
         avatar: authData.avatar
       });
 
-      // Set cookie for API requests if needed or just redirect
+      // Redirect based on role
       setTimeout(() => {
-        window.location.href = '/';
+        if (authData.roleName === 'ADMIN') {
+          window.location.href = '/pages/admin/index.html';
+        } else {
+          window.location.href = '/';
+        }
       }, 1500);
 
     } catch (err) {

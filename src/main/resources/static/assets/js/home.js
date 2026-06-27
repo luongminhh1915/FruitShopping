@@ -303,7 +303,202 @@ async function filterByCategory(categoryId) {
    PRODUCT ACTION STUBS
    ============================= */
 function wishlistProduct(id) { showToast('❤️ Đã thêm vào danh sách yêu thích!', 'success'); }
-function quickView(id) { showToast('🔍 Tính năng xem nhanh sẽ ra mắt sớm!', 'success'); }
+
+/* =============================
+   QUICK VIEW MODAL
+   ============================= */
+
+// Mock gallery images for demo (will use imgUrl as primary)
+const QV_GALLERY_EMOJIS = {
+  '🥭': ['🥭', '🥭', '🌿', '📦'],
+  '🐉': ['🐉', '🐉', '🌿', '🏷️'],
+  '🍇': ['🍇', '🍇', '🌿', '🚜'],
+  '🍉': ['🍉', '🍉', '🌿', '🏷️'],
+  '🍒': ['🍒', '🍒', '🌿', '📦'],
+  '🍊': ['🍊', '🍊', '🌿', '🏷️'],
+  '🥑': ['🥑', '🥑', '🌿', '📦'],
+  '🌟': ['🌟', '🌟', '🌿', '🏷️'],
+  '🍎': ['🍎', '🍎', '🌿', '📦'],
+};
+
+const MOCK_REVIEWS = [
+  { name: 'Nguyễn Thị Lan', avatar: '👩', stars: 5, comment: 'Sản phẩm tươi ngon, đóng gói cẩn thận. Giao hàng nhanh, sẽ mua lại lần sau!', date: '3 ngày trước' },
+  { name: 'Trần Văn Hùng', avatar: '👨', stars: 5, comment: 'Chất lượng rất tốt, đúng như mô tả. Mua nhiều lần rồi vẫn hài lòng.', date: '1 tuần trước' },
+  { name: 'Phạm Thị Mai', avatar: '👱‍♀️', stars: 4, comment: 'Trái cây tươi, vị ngọt tự nhiên. Chỉ tiếc là giao hơi lâu một chút.', date: '2 tuần trước' },
+  { name: 'Lê Văn Dũng', avatar: '🧑', stars: 5, comment: 'Xuất xứ rõ ràng, vệ sinh an toàn thực phẩm. Rất tin tưởng shop!', date: '3 tuần trước' },
+];
+
+let _qvCurrentProduct = null;
+let _qvQty = 1;
+
+async function quickView(id) {
+  const modal = document.getElementById('quick-view-modal');
+  const loading = document.getElementById('qv-loading');
+  const body = document.getElementById('qv-body');
+  const reviews = document.getElementById('qv-reviews');
+
+  // Reset state
+  _qvQty = 1;
+  document.getElementById('qv-qty').textContent = '1';
+  loading.style.display = 'flex';
+  body.style.display = 'none';
+  reviews.style.display = 'none';
+
+  // Open modal
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    // Fetch from backend, fallback to mock data
+    let product = null;
+    try {
+      const res = await fetch(`/api/products/${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        product = json.data || json;
+      }
+    } catch (err) { /* use mock */ }
+
+    if (!product) {
+      product = MOCK_PRODUCTS.find(p => p.productId === id) || MOCK_PRODUCTS[0];
+    }
+
+    _qvCurrentProduct = product;
+    populateQuickView(product);
+  } catch (err) {
+    console.error('[QuickView]', err);
+    showToast('❌ Không thể tải thông tin sản phẩm.', 'error');
+    closeQuickView();
+  }
+}
+
+function populateQuickView(product) {
+  const loading = document.getElementById('qv-loading');
+  const body = document.getElementById('qv-body');
+  const reviews = document.getElementById('qv-reviews');
+
+  // ---- Gallery ----
+  const emoji = product.emoji || '🍎';
+  const galleryItems = product.imgUrl
+    ? [product.imgUrl, product.imgUrl, null, null]
+    : (QV_GALLERY_EMOJIS[emoji] || ['🍎', '🍎', '🌿', '📦']);
+
+  const mainImgEl = document.getElementById('qv-main-img');
+  const thumbsEl = document.getElementById('qv-thumbs');
+
+  function setMainImage(src, fallbackEmoji) {
+    if (src && src.startsWith('http')) {
+      mainImgEl.innerHTML = `<img src="${src}" alt="product" />`;
+    } else {
+      mainImgEl.innerHTML = `<span style="font-size:7rem;">${src || fallbackEmoji || '🍎'}</span>`;
+    }
+  }
+
+  setMainImage(galleryItems[0], emoji);
+
+  thumbsEl.innerHTML = galleryItems.map((item, i) => {
+    const content = (item && item.startsWith('http'))
+      ? `<img src="${item}" alt="thumb ${i}" />`
+      : `<span style="font-size:1.7rem;">${item || '📦'}</span>`;
+    return `<div class="qv-thumb${i === 0 ? ' active' : ''}" data-idx="${i}" data-src="${item || ''}">${content}</div>`;
+  }).join('');
+
+  thumbsEl.querySelectorAll('.qv-thumb').forEach(thumb => {
+    thumb.addEventListener('click', () => {
+      thumbsEl.querySelectorAll('.qv-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+      const src = thumb.dataset.src;
+      setMainImage(src || galleryItems[parseInt(thumb.dataset.idx)], emoji);
+    });
+  });
+
+  // ---- Info ----
+  document.getElementById('qv-category').textContent = product.categoryName || '';
+  document.getElementById('qv-name').textContent = product.name || '';
+  document.getElementById('qv-price').textContent = formatPrice(product.price);
+  document.getElementById('qv-unit').textContent = `/ ${product.unit || 'kg'}`;
+  document.getElementById('qv-origin').textContent = product.origin || '—';
+
+  // Stars: random 4-5 from mock
+  const starCount = 4 + Math.round(Math.random());
+  document.getElementById('qv-stars').textContent = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
+  document.getElementById('qv-rating-count').textContent = `(${MOCK_REVIEWS.length} đánh giá)`;
+
+  // Description
+  const descEl = document.getElementById('qv-desc');
+  if (product.description && product.description.trim()) {
+    descEl.textContent = product.description;
+  } else {
+    descEl.textContent = `${product.name} – trái cây tươi ngon, được tuyển chọn kỹ từ ${product.origin || 'vùng nguyên sản'} đảm bảo tiêu chuẩn an toàn vệ sinh thực phẩm. Giao hàng nhanh, đóng gói cẩn thận, giữ nguyên độ tươi ngon.`;
+  }
+
+  // ---- Reviews ----
+  const reviewsList = document.getElementById('qv-reviews-list');
+  if (MOCK_REVIEWS.length === 0) {
+    reviewsList.innerHTML = `<div class="qv-no-reviews">😶 Chưa có đánh giá nào cho sản phẩm này.</div>`;
+  } else {
+    reviewsList.innerHTML = MOCK_REVIEWS.map((r, i) => `
+      <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
+        <div class="qv-review-avatar">${r.avatar}</div>
+        <div class="qv-review-content">
+          <div class="qv-review-header">
+            <span class="qv-review-name">${r.name}</span>
+            <span class="qv-review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</span>
+            <span class="qv-review-date">${r.date}</span>
+          </div>
+          <p class="qv-review-text">${r.comment}</p>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Show content
+  loading.style.display = 'none';
+  body.style.display = 'grid';
+  reviews.style.display = 'block';
+}
+
+function closeQuickView() {
+  const modal = document.getElementById('quick-view-modal');
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function initQuickViewModal() {
+  const modal = document.getElementById('quick-view-modal');
+  if (!modal) return;
+
+  document.getElementById('qv-close')?.addEventListener('click', closeQuickView);
+
+  // Click backdrop to close
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeQuickView();
+  });
+
+  // Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeQuickView();
+  });
+
+  // Quantity controls
+  document.getElementById('qv-qty-plus')?.addEventListener('click', () => {
+    _qvQty = Math.min(_qvQty + 1, 99);
+    document.getElementById('qv-qty').textContent = _qvQty;
+  });
+  document.getElementById('qv-qty-minus')?.addEventListener('click', () => {
+    _qvQty = Math.max(_qvQty - 1, 1);
+    document.getElementById('qv-qty').textContent = _qvQty;
+  });
+
+  // Add to cart
+  document.getElementById('qv-add-cart')?.addEventListener('click', () => {
+    if (_qvCurrentProduct) {
+      for (let i = 0; i < _qvQty; i++) addToCart(_qvCurrentProduct);
+      closeQuickView();
+    }
+  });
+}
+
 
 /* =============================
    SEARCH
@@ -460,7 +655,7 @@ async function openProfileModal() {
     document.getElementById('profile-fullname').value = profileData.fullName;
     document.getElementById('profile-phone').value = profileData.phone || '';
     document.getElementById('profile-address').value = profileData.address || '';
-    
+
     const avatar = profileData.avatar || '👤';
     document.getElementById('profile-avatar-input').value = avatar;
     document.getElementById('profile-avatar-display').textContent = avatar;
@@ -501,7 +696,7 @@ function initProfileModalEvents() {
     opt.addEventListener('click', () => {
       document.querySelectorAll('.profile-emoji-option').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
-      
+
       const emoji = opt.dataset.emoji;
       document.getElementById('profile-avatar-input').value = emoji;
       document.getElementById('profile-avatar-display').textContent = emoji;
@@ -609,6 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNavbarScroll();
   initUserNavbar();
   initProfileModalEvents();
+  initQuickViewModal();
 
   // Scroll to top
   initScrollTop();

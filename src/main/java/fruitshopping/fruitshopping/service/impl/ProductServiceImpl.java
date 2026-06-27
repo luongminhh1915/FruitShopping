@@ -53,6 +53,13 @@ public class ProductServiceImpl implements ProductService {
                 .map(this::toResponse);
     }
 
+    @Override
+    public ProductResponse getProductById(Integer id) {
+        return productRepository.findById(id)
+                .map(this::toResponse)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
+    }
+
     private ProductResponse toResponse(Product product) {
         return ProductResponse.builder()
                 .productId(product.getProductId())

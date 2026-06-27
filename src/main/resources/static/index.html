@@ -402,6 +402,77 @@
   </div>
 </div>
 
+<!-- ==========================================
+     QUICK VIEW MODAL
+     ========================================== -->
+<div id="quick-view-modal" class="qv-overlay" role="dialog" aria-modal="true" aria-label="Xem nhanh sản phẩm">
+  <div class="qv-card">
+    <!-- Close Button -->
+    <button class="qv-close" id="qv-close" aria-label="Đóng">✕</button>
+
+    <!-- Loading Spinner -->
+    <div class="qv-loading" id="qv-loading">
+      <div class="qv-spinner"></div>
+    </div>
+
+    <!-- Content (hidden until loaded) -->
+    <div class="qv-body" id="qv-body" style="display:none;">
+      <!-- LEFT: Gallery -->
+      <div class="qv-gallery">
+        <div class="qv-main-img" id="qv-main-img"></div>
+        <div class="qv-thumbs" id="qv-thumbs"></div>
+      </div>
+
+      <!-- RIGHT: Product Info -->
+      <div class="qv-info">
+        <!-- Breadcrumb category -->
+        <p class="qv-category" id="qv-category"></p>
+        <h2 class="qv-name" id="qv-name"></h2>
+
+        <!-- Rating summary -->
+        <div class="qv-rating-row">
+          <div class="qv-stars" id="qv-stars">★★★★★</div>
+          <span class="qv-rating-count" id="qv-rating-count">(0 đánh giá)</span>
+        </div>
+
+        <!-- Price -->
+        <div class="qv-price-row">
+          <span class="qv-price" id="qv-price"></span>
+          <span class="qv-unit" id="qv-unit"></span>
+        </div>
+
+        <!-- Origin -->
+        <div class="qv-origin-row" id="qv-origin-row">
+          <span class="qv-origin-label">📍 Xuất xứ:</span>
+          <span class="qv-origin-value" id="qv-origin"></span>
+        </div>
+
+        <!-- Description -->
+        <div class="qv-desc-block">
+          <h4 class="qv-desc-title">📝 Mô tả sản phẩm</h4>
+          <p class="qv-desc-text" id="qv-desc"></p>
+        </div>
+
+        <!-- Add to Cart CTA -->
+        <div class="qv-actions">
+          <div class="qv-qty-wrap">
+            <button class="qv-qty-btn" id="qv-qty-minus">−</button>
+            <span class="qv-qty-val" id="qv-qty">1</span>
+            <button class="qv-qty-btn" id="qv-qty-plus">+</button>
+          </div>
+          <button class="qv-add-cart" id="qv-add-cart">🛒 Thêm vào Giỏ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVIEWS SECTION -->
+    <div class="qv-reviews" id="qv-reviews" style="display:none;">
+      <h3 class="qv-reviews-title">⭐ Đánh giá từ khách hàng</h3>
+      <div class="qv-reviews-list" id="qv-reviews-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- === SCRIPTS === -->
 <script src="assets/js/api.js"></script>
 <script src="assets/js/home.js"></script>

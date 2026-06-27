@@ -24,7 +24,8 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         log.info("🚀 Checking database initialization...");
 
-        // Fix column length in case it was created as VARCHAR(6) by Hibernate previously
+        // Fix column length in case it was created as VARCHAR(6) by Hibernate
+        // previously
         try {
             jdbcTemplate.execute("ALTER TABLE otp_verification ALTER COLUMN otp_code VARCHAR(500) NOT NULL");
             log.info("⚙️ Successfully altered otp_verification.otp_code column length to 500");

@@ -60,4 +60,9 @@ public class HomeController {
             @RequestParam(defaultValue = "12") int size) {
         return ResponseEntity.ok(ApiResponse.ok(productService.searchProducts(keyword, page, size)));
     }
+
+    @GetMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Integer id) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getProductById(id)));
+    }
 }

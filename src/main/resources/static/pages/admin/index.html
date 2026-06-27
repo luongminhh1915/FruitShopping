@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FruitFresh - Quản Trị Hệ Thống</title>
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="../../assets/css/variables.css" />
+  <link rel="stylesheet" href="../../assets/css/global.css" />
+  <link rel="stylesheet" href="../../assets/css/components.css" />
+  <link rel="stylesheet" href="../../assets/css/admin.css" />
+  
+  <!-- Favicon emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+  
+  <!-- Security check: immediately check token and admin role before page renders -->
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '../login/index.html';
+    } else {
+      const user = Auth.getUser();
+      if (!user || user.roleName !== 'ADMIN') {
+        window.location.href = '/';
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div class="admin-container">
+    <!-- Left Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-logo">🥑</span>
+        <h1 class="brand-title">FruitFresh Admin</h1>
+      </div>
+      
+      <!-- Current Admin User Card -->
+      <div class="admin-profile-card">
+        <div class="admin-avatar" id="admin-avatar">👤</div>
+        <div class="admin-info">
+          <h3 class="admin-name" id="admin-name">Admin</h3>
+          <span class="admin-role">Quản Trị Viên</span>
+        </div>
+      </div>
+      
+      <!-- Menu Navigation -->
+      <nav class="sidebar-menu">
+        <ul>
+          <li>
+            <button class="menu-item active" data-tab="users">
+              <span class="menu-icon">👥</span>
+              <span class="menu-text">Quản lý User</span>
+            </button>
+          </li>
+          <li>
+            <button class="menu-item" data-tab="orders">
+              <span class="menu-icon">📦</span>
+              <span class="menu-text">Quản lý Order</span>
+            </button>
+          </li>
+          <li>
+            <button class="menu-item" data-tab="revenue">
+              <span class="menu-icon">📊</span>
+              <span class="menu-text">Quản lý Doanh thu</span>
+            </button>
+          </li>
+          <li>
+            <button class="menu-item" data-tab="categories">
+              <span class="menu-icon">🥑</span>
+              <span class="menu-text">Quản lý Loại hoa quả</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+      
+      <!-- Sidebar Footer Links -->
+      <div class="sidebar-footer">
+        <a href="/" class="btn-back-home">
+          <span class="menu-icon">🏠</span>
+          <span class="menu-text">Quay lại Trang Chủ</span>
+        </a>
+        <button class="btn-logout-admin" id="btn-logout-admin">
+          <span class="menu-icon">🚪</span>
+          <span class="menu-text">Đăng Xuất</span>
+        </button>
+      </div>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <main class="admin-main">
+      <!-- Admin Page Header -->
+      <header class="admin-header">
+        <div class="header-left">
+          <h2 id="current-tab-title">Quản lý User</h2>
+        </div>
+        <div class="header-right">
+          <span id="current-time-indicator" class="time-badge"></span>
+        </div>
+      </header>
+      
+      <!-- Content Panes -->
+      <div class="admin-content-area" id="admin-content-area">
+        <!-- Users Tab -->
+        <div class="tab-pane active" id="tab-users">
+          <div class="blank-state">
+            <div class="blank-icon">👥</div>
+            <h3>Danh Sách Người Dùng</h3>
+            <p>Trang này hiện đang để trống theo yêu cầu. Dữ liệu quản lý user sẽ được tích hợp tại đây.</p>
+          </div>
+        </div>
+        
+        <!-- Orders Tab -->
+        <div class="tab-pane" id="tab-orders">
+          <div class="blank-state">
+            <div class="blank-icon">📦</div>
+            <h3>Danh Sách Đơn Hàng</h3>
+            <p>Trang này hiện đang để trống theo yêu cầu. Dữ liệu quản lý đơn hàng sẽ được tích hợp tại đây.</p>
+          </div>
+        </div>
+        
+        <!-- Revenue Tab -->
+        <div class="tab-pane" id="tab-revenue">
+          <div class="blank-state">
+            <div class="blank-icon">📊</div>
+            <h3>Thống Kê Doanh Thu</h3>
+            <p>Trang này hiện đang để trống theo yêu cầu. Biểu đồ và thông số doanh thu sẽ được tích hợp tại đây.</p>
+          </div>
+        </div>
+        
+        <!-- Categories Tab -->
+        <div class="tab-pane" id="tab-categories">
+          <div class="blank-state">
+            <div class="blank-icon">🥑</div>
+            <h3>Danh Mục Loại Hoa Quả</h3>
+            <p>Trang này hiện đang để trống theo yêu cầu. Cấu trúc loại hoa quả và quản trị danh mục sẽ được tích hợp tại đây.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../assets/js/admin.js"></script>
+</body>
+</html>
