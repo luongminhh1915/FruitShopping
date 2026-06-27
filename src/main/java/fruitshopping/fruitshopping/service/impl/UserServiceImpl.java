@@ -44,8 +44,12 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setFullName(request.getFullName().trim());
-        user.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
-        user.setAddress(request.getAddress() != null ? request.getAddress().trim() : null);
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone().trim().isBlank() ? null : request.getPhone().trim());
+        }
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress().trim().isBlank() ? null : request.getAddress().trim());
+        }
 
         if (request.getAvatar() != null && !request.getAvatar().trim().isBlank()) {
             user.setAvatar(request.getAvatar().trim());

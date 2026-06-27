@@ -13,6 +13,8 @@ public class AuthResponse {
     private Integer userId;
     private String email;
     private String fullName;
+    private String phone;
+    private String address;
     private String roleName;
     private String avatar;
 }

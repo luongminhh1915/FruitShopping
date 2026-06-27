@@ -107,6 +107,8 @@ function initLoginForm() {
         userId: authData.userId,
         email: authData.email,
         fullName: authData.fullName,
+        phone: authData.phone,
+        address: authData.address,
         roleName: authData.roleName,
         avatar: authData.avatar
       });

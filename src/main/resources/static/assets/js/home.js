@@ -120,7 +120,7 @@ function renderCartModal() {
   if (footer) footer.style.display = 'block';
 
   let grandTotal = 0;
-  body.innerHTML = items.map((item, index) => {
+  const itemsHtml = items.map((item, index) => {
     const subtotal = item.price * item.quantity;
     grandTotal += subtotal;
 
@@ -152,8 +152,75 @@ function renderCartModal() {
     `;
   }).join('');
 
+  let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
+  let userAddress = user.address && user.address !== '—' ? user.address.trim() : '';
+
+  const addressSectionHtml = `
+    <div id="cart-address-section" style="margin-top: 20px; padding: 16px; background: ${userAddress ? '#f0fdf4' : '#fef2f2'}; border: 2px solid ${userAddress ? '#86efac' : '#fca5a5'}; border-radius: 14px; transition: all 0.3s ease;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+        <span style="font-weight: 800; font-size: 0.95rem; color: ${userAddress ? '#166534' : '#991b1b'}; display: flex; align-items: center; gap: 6px;">
+          📍 Thông tin địa chỉ giao hàng ${userAddress ? '✅' : '⚠️'}
+        </span>
+      </div>
+      <div id="cart-address-alert" style="display: ${userAddress ? 'none' : 'block'}; color: #dc2626; font-size: 0.88rem; font-weight: 800; margin-bottom: 10px; padding: 8px 12px; background: #ffe4e6; border-radius: 8px; border: 1px solid #fecdd3;">
+        🔴 YÊU CẦU: Vui lòng nhập thông tin địa chỉ trước khi thanh toán!
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" id="cart-address-input" value="${userAddress}" placeholder="Nhập địa chỉ nhận hàng (Số nhà, đường, quận/huyện...)..." style="flex: 1; min-width: 220px; padding: 10px 14px; border: 2px solid ${userAddress ? '#86efac' : '#f87171'}; border-radius: 10px; font-size: 0.92rem; outline: none; box-sizing: border-box; font-family: inherit;" />
+        <button onclick="saveCartAddress()" style="background: #16a34a; color: white; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Lưu Địa Chỉ</button>
+      </div>
+    </div>
+  `;
+
+  body.innerHTML = itemsHtml + addressSectionHtml;
+
   if (totalPriceEl) totalPriceEl.textContent = formatPrice(grandTotal);
 }
+
+window.saveCartAddress = async function() {
+  const input = document.getElementById('cart-address-input');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) {
+    showToast('⚠️ Vui lòng nhập địa chỉ giao hàng!', 'error');
+    return;
+  }
+
+  let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
+  user.address = val;
+
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          fullName: user.fullName,
+          phone: user.phone || null,
+          address: val,
+          avatar: user.avatar
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const profile = json.data || json;
+        if (profile) {
+          if (profile.fullName) user.fullName = profile.fullName;
+          if (profile.phone) user.phone = profile.phone;
+          if (profile.address) user.address = profile.address;
+        }
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  localStorage.setItem('user', JSON.stringify(user));
+  showToast('✅ Đã lưu địa chỉ giao hàng thành công!', 'success');
+  renderCartModal();
+};
 
 window.changeCartQty = function(index, delta) {
   let items = getCartItems();
@@ -226,10 +293,76 @@ function initCartModalEvents() {
     }
   });
 
-  checkoutBtn?.addEventListener('click', () => {
+  checkoutBtn?.addEventListener('click', async () => {
     const items = getCartItems();
-    if (items.length === 0) return;
-    alert('🎉 Đặt hàng thành công! Cảm ơn bạn đã mua sắm tại FruitFresh.');
+    if (items.length === 0) {
+      showToast('⚠️ Giỏ hàng của bạn đang trống!', 'error');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      showToast('⚠️ Bạn cần đăng nhập để tiến hành thanh toán!', 'error');
+      setTimeout(() => { window.location.href = 'pages/login/index.html'; }, 1500);
+      return;
+    }
+
+    let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
+    const inputEl = document.getElementById('cart-address-input');
+    let userAddress = (inputEl ? inputEl.value.trim() : '') || (user.address && user.address !== '—' ? user.address.trim() : '');
+
+    if (!userAddress) {
+      const alertEl = document.getElementById('cart-address-alert');
+      const secEl = document.getElementById('cart-address-section');
+      if (secEl) {
+        secEl.style.background = '#fef2f2';
+        secEl.style.borderColor = '#ef4444';
+        secEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.textContent = '🔴 VUI LÒNG ĐIỀN THÔNG TIN ĐỊA CHỈ ĐỂ GIAO HÀNG!';
+      }
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.style.borderColor = '#ef4444';
+        inputEl.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.25)';
+      }
+      showToast('⚠️ Vui lòng điền thông tin địa chỉ để giao hàng!', 'error');
+      return;
+    }
+
+    // Save updated address to localStorage & profile
+    if (userAddress !== user.address) {
+      user.address = userAddress;
+      try {
+        const res = await fetch('/api/users/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            fullName: user.fullName,
+            phone: user.phone || null,
+            address: userAddress,
+            avatar: user.avatar
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const profile = json.data || json;
+          if (profile) {
+            if (profile.fullName) user.fullName = profile.fullName;
+            if (profile.phone) user.phone = profile.phone;
+            if (profile.address) user.address = profile.address;
+          }
+        }
+      } catch (err) { console.error(err); }
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    alert(`🎉 Đặt hàng thành công!\nĐơn hàng sẽ được giao đến địa chỉ:\n📍 ${userAddress}`);
     saveCartItems([]);
     updateCartBadge();
     closeCartModal();
