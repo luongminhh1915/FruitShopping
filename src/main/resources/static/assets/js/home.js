@@ -621,12 +621,19 @@ const QV_GALLERY_EMOJIS = {
   '🍎': ['🍎', '🍎', '🌿', '📦', '🏷️'],
 };
 
-const MOCK_REVIEWS = [
-  { name: 'Nguyễn Thị Lan', avatar: '👩', stars: 5, comment: 'Sản phẩm tươi ngon, đóng gói cẩn thận. Giao hàng nhanh, sẽ mua lại lần sau!', date: '3 ngày trước' },
-  { name: 'Trần Văn Hùng', avatar: '👨', stars: 5, comment: 'Chất lượng rất tốt, đúng như mô tả. Mua nhiều lần rồi vẫn hài lòng.', date: '1 tuần trước' },
-  { name: 'Phạm Thị Mai', avatar: '👱‍♀️', stars: 4, comment: 'Trái cây tươi, vị ngọt tự nhiên. Chỉ tiếc là giao hơi lâu một chút.', date: '2 tuần trước' },
-  { name: 'Lê Văn Dũng', avatar: '🧑', stars: 5, comment: 'Xuất xứ rõ ràng, vệ sinh an toàn thực phẩm. Rất tin tưởng shop!', date: '3 tuần trước' },
-];
+const PRODUCT_REVIEWS = {};
+
+function getProductReviews(product) {
+  if (!product) return [];
+  const id = product.productId;
+  if (!PRODUCT_REVIEWS[id]) {
+    PRODUCT_REVIEWS[id] = [
+      { name: 'Nguyễn Thị Lan', avatar: '👩', stars: 5, comment: `Sản phẩm ${product.name} tươi ngon, đóng gói cẩn thận. Giao hàng nhanh, sẽ mua lại!`, date: '3 ngày trước' },
+      { name: 'Trần Văn Hùng', avatar: '👨', stars: 5, comment: `Chất lượng ${product.name} rất tốt, đúng như mô tả. Rất hài lòng.`, date: '1 tuần trước' }
+    ];
+  }
+  return PRODUCT_REVIEWS[id];
+}
 
 let _qvCurrentProduct = null;
 let _qvQty = 1;
@@ -726,10 +733,11 @@ function populateQuickView(product) {
   document.getElementById('qv-unit').textContent = `/ ${product.unit || 'kg'}`;
   document.getElementById('qv-origin').textContent = product.origin || '—';
 
-  // Stars: random 4-5 from mock
+  // ---- Reviews ----
+  const prodReviews = getProductReviews(product);
   const starCount = 4 + Math.round(Math.random());
   document.getElementById('qv-stars').textContent = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
-  document.getElementById('qv-rating-count').textContent = `(${MOCK_REVIEWS.length} đánh giá)`;
+  document.getElementById('qv-rating-count').textContent = `(${prodReviews.length} đánh giá)`;
 
   // Description
   const descEl = document.getElementById('qv-desc');
@@ -739,12 +747,11 @@ function populateQuickView(product) {
     descEl.textContent = `${product.name} – trái cây tươi ngon, được tuyển chọn kỹ từ ${product.origin || 'vùng nguyên sản'} đảm bảo tiêu chuẩn an toàn vệ sinh thực phẩm. Giao hàng nhanh, đóng gói cẩn thận, giữ nguyên độ tươi ngon.`;
   }
 
-  // ---- Reviews ----
   const reviewsList = document.getElementById('qv-reviews-list');
-  if (MOCK_REVIEWS.length === 0) {
+  if (prodReviews.length === 0) {
     reviewsList.innerHTML = `<div class="qv-no-reviews">😶 Chưa có đánh giá nào cho sản phẩm này.</div>`;
   } else {
-    reviewsList.innerHTML = MOCK_REVIEWS.map((r, i) => `
+    reviewsList.innerHTML = prodReviews.map((r, i) => `
       <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
         <div class="qv-review-avatar">${r.avatar}</div>
         <div class="qv-review-content">
@@ -759,11 +766,105 @@ function populateQuickView(product) {
     `).join('');
   }
 
+  // Initialize Star Picker
+  initStarPicker();
+
   // Show content
   loading.style.display = 'none';
   body.style.display = 'grid';
   reviews.style.display = 'block';
 }
+
+let _qvSelectedStars = 5;
+const STAR_LABELS = {
+  1: '(1/5 Rất tệ)',
+  2: '(2/5 Tệ)',
+  3: '(3/5 Bình thường)',
+  4: '(4/5 Hài lòng)',
+  5: '(5/5 Tuyệt vời)'
+};
+
+function initStarPicker() {
+  const picker = document.getElementById('qv-star-picker');
+  if (!picker) return;
+  _qvSelectedStars = 5;
+  const stars = picker.querySelectorAll('.star-item');
+  const label = document.getElementById('qv-star-label');
+
+  stars.forEach((s, idx) => {
+    s.style.color = '#f59e0b';
+  });
+  if (label) label.textContent = STAR_LABELS[5];
+
+  stars.forEach(star => {
+    star.onclick = () => {
+      _qvSelectedStars = parseInt(star.dataset.star);
+      stars.forEach((s, idx) => {
+        s.style.color = idx < _qvSelectedStars ? '#f59e0b' : '#cbd5e1';
+      });
+      if (label) label.textContent = STAR_LABELS[_qvSelectedStars] || `(${_qvSelectedStars}/5)`;
+    };
+  });
+}
+
+window.submitProductReview = function () {
+  if (!_qvCurrentProduct) return;
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showToast('⚠️ Bạn cần đăng nhập để gửi đánh giá!', 'error');
+    return;
+  }
+
+  const input = document.getElementById('qv-review-input');
+  if (!input) return;
+
+  const comment = input.value.trim();
+  if (!comment) {
+    showToast('⚠️ Vui lòng nhập nội dung nhận xét!', 'error');
+    return;
+  }
+
+  const user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
+  const userAvatar = (user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('/')))
+    ? `<img src="${user.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`
+    : (user.avatar || '👤');
+
+  const newReview = {
+    name: user.fullName || user.email || 'Khách hàng',
+    avatar: userAvatar,
+    stars: _qvSelectedStars,
+    comment: comment,
+    date: 'Vừa xong'
+  };
+
+  const prodReviews = getProductReviews(_qvCurrentProduct);
+  prodReviews.unshift(newReview);
+  input.value = '';
+
+  const reviewsList = document.getElementById('qv-reviews-list');
+  if (reviewsList) {
+    reviewsList.innerHTML = prodReviews.map((r, i) => `
+      <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
+        <div class="qv-review-avatar">${r.avatar}</div>
+        <div class="qv-review-content">
+          <div class="qv-review-header">
+            <span class="qv-review-name">${r.name}</span>
+            <span class="qv-review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</span>
+            <span class="qv-review-date">${r.date}</span>
+          </div>
+          <p class="qv-review-text">${r.comment}</p>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const ratingCount = document.getElementById('qv-rating-count');
+  if (ratingCount) {
+    ratingCount.textContent = `(${prodReviews.length} đánh giá)`;
+  }
+
+  showToast('🎉 Cảm ơn bạn đã gửi đánh giá sản phẩm!', 'success');
+};
 
 function closeQuickView() {
   const modal = document.getElementById('quick-view-modal');

@@ -361,6 +361,29 @@
       <!-- REVIEWS SECTION -->
       <div class="qv-reviews" id="qv-reviews" style="display:none;">
         <h3 class="qv-reviews-title">⭐ Đánh giá từ khách hàng</h3>
+
+        <!-- Add Review Form -->
+        <div class="qv-add-review-box" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <h4 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            ✍️ Viết đánh giá của bạn
+          </h4>
+          <div class="qv-rating-select" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 0.9rem; font-weight: 600; color: #475569;">Đánh giá sao:</span>
+            <div class="star-rating-picker" id="qv-star-picker" style="display: flex; gap: 4px; cursor: pointer; font-size: 1.4rem; color: #f59e0b;">
+              <span data-star="1" class="star-item">★</span>
+              <span data-star="2" class="star-item">★</span>
+              <span data-star="3" class="star-item">★</span>
+              <span data-star="4" class="star-item">★</span>
+              <span data-star="5" class="star-item">★</span>
+            </div>
+            <span id="qv-star-label" style="font-size: 0.85rem; font-weight: 700; color: #d97706;">(5/5 Tuyệt vời)</span>
+          </div>
+          <textarea id="qv-review-input" placeholder="Chia sẻ cảm nhận của bạn về sản phẩm này (chất lượng, vị ngọt, đóng gói...)..." rows="3" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; outline: none; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+          <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+            <button class="btn btn-primary" id="qv-submit-review" onclick="submitProductReview()" style="padding: 8px 18px; font-size: 0.9rem; font-weight: 700; border-radius: 8px; cursor: pointer;">🚀 Gửi Đánh Giá</button>
+          </div>
+        </div>
+
         <div class="qv-reviews-list" id="qv-reviews-list"></div>
       </div>
     </div>
