@@ -29,20 +29,64 @@ const MOCK_PRODUCTS = [
 ];
 
 /* =============================
-   CART STATE
+   CART STATE & MODAL LOGIC
    ============================= */
-let cartCount = 0;
-
-function updateCartBadge() {
-  const badge = document.getElementById('cart-badge');
-  if (badge) {
-    badge.textContent = cartCount;
-    badge.style.display = cartCount > 0 ? 'flex' : 'none';
+function getCartItems() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const key = user.userId ? `cart_items_${user.userId}` : 'cart_items_guest';
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  } catch (e) {
+    return [];
   }
 }
 
-function addToCart(product) {
-  cartCount++;
+function saveCartItems(items) {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const key = user.userId ? `cart_items_${user.userId}` : 'cart_items_guest';
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch (e) {
+    console.error('Lỗi lưu giỏ hàng:', e);
+  }
+}
+
+function updateCartBadge() {
+  const items = getCartItems();
+  const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const badge = document.getElementById('cart-badge');
+  if (badge) {
+    badge.textContent = totalQty;
+    badge.style.display = totalQty > 0 ? 'flex' : 'none';
+  }
+}
+
+function addToCart(product, qty = 1) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showToast('⚠️ Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng!', 'error');
+    return;
+  }
+
+  let items = getCartItems();
+  const existingIndex = items.findIndex(item => item.productId === product.productId);
+
+  if (existingIndex > -1) {
+    items[existingIndex].quantity = (items[existingIndex].quantity || 1) + qty;
+  } else {
+    items.push({
+      productId: product.productId,
+      name: product.name,
+      price: product.price,
+      unit: product.unit || 'kg',
+      categoryName: product.categoryName || '',
+      imgUrl: product.imgUrl || null,
+      emoji: product.emoji || '🍎',
+      quantity: qty
+    });
+  }
+
+  saveCartItems(items);
   updateCartBadge();
   showToast(`✅ Đã thêm "${product.name}" vào giỏ hàng!`, 'success');
 
@@ -52,6 +96,144 @@ function addToCart(product) {
     cartBtn.style.transform = 'scale(1.35)';
     setTimeout(() => cartBtn.style.transform = '', 300);
   }
+}
+
+function renderCartModal() {
+  const body = document.getElementById('cart-modal-body');
+  const totalPriceEl = document.getElementById('cart-total-price');
+  const footer = document.getElementById('cart-modal-footer');
+  if (!body) return;
+
+  const items = getCartItems();
+  if (items.length === 0) {
+    body.innerHTML = `
+      <div style="text-align:center; padding: 40px 20px; color: #64748b;">
+        <div style="font-size: 4rem; margin-bottom: 12px;">🛒</div>
+        <h4 style="font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Giỏ hàng của bạn đang trống</h4>
+        <p style="font-size: 0.9rem;">Hãy chọn mua những món hoa quả tươi ngon nhất nhé!</p>
+      </div>
+    `;
+    if (footer) footer.style.display = 'none';
+    return;
+  }
+
+  if (footer) footer.style.display = 'block';
+
+  let grandTotal = 0;
+  body.innerHTML = items.map((item, index) => {
+    const subtotal = item.price * item.quantity;
+    grandTotal += subtotal;
+
+    let firstImg = '';
+    if (item.imgUrl) {
+      const parts = item.imgUrl.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length > 0) firstImg = parts[0];
+    }
+    const isUrl = firstImg && (firstImg.startsWith('http') || firstImg.startsWith('/'));
+    const imgHtml = isUrl
+      ? `<img src="${firstImg}" alt="${item.name}">`
+      : `<div style="font-size: 2.2rem;">${firstImg || item.emoji || '🍎'}</div>`;
+
+    return `
+      <div class="cart-item">
+        <div class="cart-item-img">${imgHtml}</div>
+        <div class="cart-item-details">
+          <h4 class="cart-item-name">${item.name}</h4>
+          <span class="cart-item-price">${formatPrice(item.price)} / ${item.unit}</span>
+        </div>
+        <div class="cart-item-qty">
+          <button class="cart-qty-btn" onclick="changeCartQty(${index}, -1)">−</button>
+          <span class="cart-qty-val">${item.quantity}</span>
+          <button class="cart-qty-btn" onclick="changeCartQty(${index}, 1)">+</button>
+        </div>
+        <div class="cart-item-subtotal">${formatPrice(subtotal)}</div>
+        <button class="cart-item-remove" title="Xóa" onclick="removeCartItem(${index})">🗑️</button>
+      </div>
+    `;
+  }).join('');
+
+  if (totalPriceEl) totalPriceEl.textContent = formatPrice(grandTotal);
+}
+
+window.changeCartQty = function(index, delta) {
+  let items = getCartItems();
+  if (items[index]) {
+    items[index].quantity = (items[index].quantity || 1) + delta;
+    if (items[index].quantity <= 0) {
+      items.splice(index, 1);
+    }
+    saveCartItems(items);
+    updateCartBadge();
+    renderCartModal();
+  }
+};
+
+window.removeCartItem = function(index) {
+  let items = getCartItems();
+  if (items[index]) {
+    showToast(`🗑️ Đã xóa "${items[index].name}" khỏi giỏ hàng!`, 'info');
+    items.splice(index, 1);
+    saveCartItems(items);
+    updateCartBadge();
+    renderCartModal();
+  }
+};
+
+function openCartModal() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showToast('⚠️ Bạn cần đăng nhập để xem giỏ hàng!', 'error');
+    return;
+  }
+  const modal = document.getElementById('cart-modal');
+  if (modal) {
+    renderCartModal();
+    modal.classList.add('active');
+  }
+}
+
+function closeCartModal() {
+  const modal = document.getElementById('cart-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function initCartModalEvents() {
+  const modal = document.getElementById('cart-modal');
+  const closeBtn = document.getElementById('cart-modal-close');
+  const clearBtn = document.getElementById('btn-clear-cart');
+  const checkoutBtn = document.getElementById('btn-checkout');
+  const cartBtn = document.getElementById('cart-btn');
+
+  cartBtn?.addEventListener('click', (e) => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.roleName !== 'ADMIN') {
+      openCartModal();
+    }
+  });
+
+  closeBtn?.addEventListener('click', closeCartModal);
+
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeCartModal();
+  });
+
+  clearBtn?.addEventListener('click', () => {
+    if (confirm('Bạn có chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng?')) {
+      saveCartItems([]);
+      updateCartBadge();
+      renderCartModal();
+      showToast('🗑️ Đã xóa sạch giỏ hàng!', 'info');
+    }
+  });
+
+  checkoutBtn?.addEventListener('click', () => {
+    const items = getCartItems();
+    if (items.length === 0) return;
+    alert('🎉 Đặt hàng thành công! Cảm ơn bạn đã mua sắm tại FruitFresh.');
+    saveCartItems([]);
+    updateCartBadge();
+    closeCartModal();
+  });
 }
 
 /* =============================
@@ -78,25 +260,30 @@ function formatPrice(price) {
    ============================= */
 function renderProductCard(product) {
   const priceFormatted = formatPrice(product.price);
-  const img = product.imgUrl
-    ? `<img src="${product.imgUrl}" alt="${product.name}" loading="lazy">`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:4rem;">${product.emoji || '🍎'}</div>`;
+  let firstImg = '';
+  if (product.imgUrl) {
+    const parts = product.imgUrl.split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      firstImg = parts[0];
+    }
+  }
+
+  const isUrl = firstImg && (firstImg.startsWith('http') || firstImg.startsWith('/'));
+  const img = isUrl
+    ? `<img src="${firstImg}" alt="${product.name}" loading="lazy">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:4rem;">${firstImg || product.emoji || '🍎'}</div>`;
 
   return `
     <div class="product-card" id="product-${product.productId}">
-      <div class="product-img-wrap">
+      <div class="product-img-wrap" onclick="quickView(${product.productId})" style="cursor:pointer;">
         ${img}
         <div class="product-badges">
-          <span class="badge badge-green">Tươi</span>
           ${product.origin === 'USA' || product.origin === 'Thái Lan' ? '<span class="badge badge-orange">Nhập khẩu</span>' : ''}
-        </div>
-        <div class="product-actions">
-          <button class="product-action-btn" title="Xem nhanh" onclick="quickView(${product.productId})">👁️</button>
         </div>
       </div>
       <div class="product-info">
         <p class="product-category">${product.categoryName || ''}</p>
-        <h3 class="product-name">${product.name}</h3>
+        <h3 class="product-name" onclick="quickView(${product.productId})" style="cursor:pointer;">${product.name}</h3>
         <div class="product-meta">
           <span class="product-origin">📍 ${product.origin || 'Việt Nam'}</span>
           <div class="stars">⭐⭐⭐⭐⭐</div>
@@ -106,7 +293,7 @@ function renderProductCard(product) {
             <span class="product-price">${priceFormatted}</span>
             <span class="product-unit">/${product.unit || 'kg'}</span>
           </div>
-          <button class="btn-add-cart" title="Thêm vào giỏ" onclick='addToCart(${JSON.stringify(product)})'>+</button>
+          <button class="btn-add-cart" title="Thêm vào giỏ" onclick='event.stopPropagation(); addToCart(${JSON.stringify(product)})'>+</button>
         </div>
       </div>
     </div>
@@ -117,14 +304,29 @@ function renderProductCard(product) {
    RENDER CATEGORY CARD
    ============================= */
 function renderCategoryCard(cat) {
+  let defaultEmoji = '🍀';
+  let description = '';
+  const lowerName = (cat.name || '').toLowerCase();
+  if (lowerName.includes('giỏ')) {
+    defaultEmoji = '🧺';
+    description = 'Giỏ quà tặng sang trọng, kết hợp tinh tế các loại quả ngon cao cấp cho mọi dịp.';
+  } else if (lowerName.includes('hoa quả') || lowerName.includes('loại') || lowerName.includes('tổng hợp')) {
+    defaultEmoji = '🍎';
+    description = 'Tuyển chọn trái cây tươi ngon mọng nước, nhập khẩu và nội địa đạt chuẩn VietGAP.';
+  } else {
+    description = cat.description || 'Trái cây tươi sạch, thơm ngon thượng hạng mỗi ngày.';
+  }
+
   const inner = cat.image
     ? `<img src="${cat.image}" alt="${cat.name}">`
-    : `${cat.emoji || '🍀'}`;
+    : `${cat.emoji || defaultEmoji}`;
 
   return `
-    <div class="category-card" onclick="filterByCategory(${cat.categoryId})" id="cat-${cat.categoryId}">
+    <div class="category-card" onclick="filterByCategory('${cat.name}')" id="cat-${cat.categoryId}">
       <div class="category-img-wrap">${inner}</div>
       <p class="category-name">${cat.name}</p>
+      <p class="category-desc">${description}</p>
+      <span class="category-sub">Khám phá ngay →</span>
     </div>
   `;
 }
@@ -226,12 +428,15 @@ function stopHeroAuto() { clearInterval(heroTimer); }
 /* =============================
    LOAD CATEGORIES
    ============================= */
+/* =============================
+   LOAD CATEGORIES
+   ============================= */
 async function loadCategories() {
   const container = document.getElementById('categories-grid');
   if (!container) return;
 
   // Show skeletons
-  container.innerHTML = Array(8).fill(`
+  container.innerHTML = Array(2).fill(`
     <div style="text-align:center;">
       <div class="skeleton" style="width:100px;height:100px;border-radius:50%;margin:0 auto 12px;"></div>
       <div class="skeleton" style="width:70px;height:14px;margin:0 auto;border-radius:4px;"></div>
@@ -241,12 +446,95 @@ async function loadCategories() {
   let cats = await API.getCategories().catch(() => null);
   if (!cats || cats.length === 0) cats = MOCK_CATEGORIES;
 
+  // Filter to only display "Hoa quả tổng hợp" and "Giỏ hoa quả"
+  const allowed = ['hoa quả tổng hợp', 'các loại hoa quả', 'giỏ hoa quả'];
+  cats = cats.filter(c => c.name && allowed.some(a => c.name.trim().toLowerCase().includes(a)));
+
+  // Standardize names
+  cats.forEach(c => {
+    if (c.name.trim().toLowerCase().includes('giỏ')) {
+      c.name = 'Giỏ hoa quả';
+    } else {
+      c.name = 'Hoa quả tổng hợp';
+    }
+  });
+
+  // Deduplicate by name
+  const uniqueCats = [];
+  const seen = new Set();
+  for (const c of cats) {
+    if (!seen.has(c.name)) {
+      seen.add(c.name);
+      uniqueCats.push(c);
+    }
+  }
+  cats = uniqueCats;
+
+  if (cats.length === 0) {
+    cats = [
+      { categoryId: 1, name: 'Giỏ hoa quả', emoji: '🧺' },
+      { categoryId: 2, name: 'Hoa quả tổng hợp', emoji: '🍎' }
+    ];
+  }
+
   container.innerHTML = cats.map(renderCategoryCard).join('');
 }
 
 /* =============================
-   LOAD PRODUCTS
+   LOAD PRODUCTS & PAGINATION
    ============================= */
+let _cachedFeaturedProducts = [];
+let _currentFilteredList = [];
+let _currentPage = 1;
+const PAGE_SIZE = 12;
+
+function renderPaginatedProducts(page = 1) {
+  _currentPage = page;
+  const container = document.getElementById('featured-grid');
+  const paginationContainer = document.getElementById('featured-pagination');
+  if (!container) return;
+
+  const total = _currentFilteredList.length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  if (total === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--color-gray-500);font-weight:600;">Chưa có sản phẩm nào trong mục này.</div>`;
+    if (paginationContainer) paginationContainer.innerHTML = '';
+    return;
+  }
+
+  const start = (page - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const pagedProducts = _currentFilteredList.slice(start, end);
+
+  container.innerHTML = pagedProducts.map(renderProductCard).join('');
+
+  if (paginationContainer) {
+    if (totalPages <= 1) {
+      paginationContainer.innerHTML = '';
+      return;
+    }
+
+    let buttonsHtml = '';
+    buttonsHtml += `<button class="pagination-btn ${page === 1 ? 'disabled' : ''}" ${page === 1 ? 'disabled' : ''} onclick="goToPage(${page - 1})">‹ Trang trước</button>`;
+
+    for (let i = 1; i <= totalPages; i++) {
+      buttonsHtml += `<button class="pagination-btn ${i === page ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    }
+
+    buttonsHtml += `<button class="pagination-btn ${page === totalPages ? 'disabled' : ''}" ${page === totalPages ? 'disabled' : ''} onclick="goToPage(${page + 1})">Trang sau ›</button>`;
+
+    paginationContainer.innerHTML = buttonsHtml;
+  }
+}
+
+window.goToPage = function(page) {
+  const totalPages = Math.ceil(_currentFilteredList.length / PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
+  renderPaginatedProducts(page);
+  document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' });
+};
+
 async function loadFeaturedProducts() {
   const container = document.getElementById('featured-grid');
   if (!container) return;
@@ -262,58 +550,53 @@ async function loadFeaturedProducts() {
     </div>
   `).join('');
 
-  let products = await API.getFeaturedProducts(8).catch(() => null);
+  let products = await API.getFeaturedProducts(100).catch(() => null);
   if (!products || products.length === 0) products = MOCK_PRODUCTS;
 
-  container.innerHTML = products.map(renderProductCard).join('');
+  _cachedFeaturedProducts = products;
+  _currentFilteredList = products;
+  renderPaginatedProducts(1);
 }
 
 async function loadNewProducts() {
   const container = document.getElementById('new-products-grid');
   if (!container) return;
-
-  let products = null;
-  try {
-    const categories = await API.getAllCategories();
-    if (categories && categories.length > 0) {
-      const basketCat = categories.find(c => c.name.toLowerCase().includes('giỏ'));
-      if (basketCat) {
-        products = await API.getProductsByCategory(basketCat.categoryId, 4);
-      }
-    }
-  } catch (err) {
-    console.error('Lỗi tải giỏ hoa quả:', err);
-  }
-
-  if (!products || products.length === 0) {
-    products = await API.getNewProducts(4).catch(() => null);
-  }
-  if (!products || products.length === 0) {
-    products = MOCK_PRODUCTS.slice(0, 4);
-  }
-
+  let products = _cachedFeaturedProducts.slice(0, 4);
   container.innerHTML = products.map(renderProductCard).join('');
 }
 
-
 /* =============================
-   FILTER BY CATEGORY
+   FILTER BY CATEGORY / TAB
    ============================= */
-async function filterByCategory(categoryId) {
+async function filterByCategory(filterTarget) {
   const container = document.getElementById('featured-grid');
   if (!container) return;
 
-  // Scroll to featured
   document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' });
 
-  container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--color-gray-400);">Đang tải...</div>`;
-
-  let products = await API.getProductsByCategory(categoryId, 8).catch(() => null);
-  if (!products || products.length === 0) {
-    products = MOCK_PRODUCTS.filter(p => p.categoryId === categoryId || true).slice(0, 4);
+  if (_cachedFeaturedProducts.length === 0) {
+    let products = await API.getFeaturedProducts(100).catch(() => null);
+    if (!products || products.length === 0) products = MOCK_PRODUCTS;
+    _cachedFeaturedProducts = products;
   }
 
-  container.innerHTML = products.map(renderProductCard).join('');
+  let filtered = _cachedFeaturedProducts;
+
+  if (filterTarget) {
+    const targetStr = String(filterTarget).trim().toLowerCase();
+    filtered = _cachedFeaturedProducts.filter(p => {
+      const catName = (p.categoryName || '').trim().toLowerCase();
+      if (targetStr.includes('giỏ')) {
+        return catName.includes('giỏ');
+      } else if (targetStr.includes('tổng hợp') || targetStr.includes('hoa quả') || targetStr.includes('loại')) {
+        return !catName.includes('giỏ');
+      }
+      return String(p.categoryId) === targetStr || catName === targetStr;
+    });
+  }
+
+  _currentFilteredList = filtered;
+  renderPaginatedProducts(1);
 }
 
 /* =============================
@@ -572,12 +855,8 @@ function initProductTabs() {
     tab.addEventListener('click', async () => {
       document.querySelectorAll('.product-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      const categoryId = tab.dataset.categoryId;
-      if (categoryId) {
-        await filterByCategory(parseInt(categoryId));
-      } else {
-        await loadFeaturedProducts();
-      }
+      const filterVal = tab.dataset.categoryFilter || tab.dataset.categoryId || '';
+      await filterByCategory(filterVal);
     });
   });
 }
@@ -870,6 +1149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Product tabs
   initProductTabs();
 
-  // Cart badge
+  // Cart badge & modal events
+  initCartModalEvents();
   updateCartBadge();
 });
