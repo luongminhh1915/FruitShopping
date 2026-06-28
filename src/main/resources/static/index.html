@@ -479,6 +479,47 @@
         </div>
       </div>
     </div>
+  <!-- === PAYMENT METHOD MODAL === -->
+  <div class="cart-modal-overlay" id="payment-method-modal" aria-hidden="true" style="z-index: 11000;">
+    <div class="cart-modal-card" role="dialog" aria-label="Phương thức thanh toán" style="max-width: 520px; padding: 24px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px;">
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+          💳 Phương Thức Thanh Toán
+        </h3>
+        <button onclick="closePaymentMethodModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b; padding: 4px;">✕</button>
+      </div>
+
+      <p style="font-size: 0.92rem; color: #475569; margin: 0 0 18px 0; font-weight: 600;">
+        Vui lòng chọn 1 trong 2 hình thức thanh toán & nhận hàng dưới đây:
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+        <!-- Option 1: COD -->
+        <div onclick="selectPaymentOption('COD')" id="pay-opt-cod" style="padding: 16px; border: 2px solid #22c55e; background: #f0fdf4; border-radius: 14px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 2.2rem; background: #dcfce7; padding: 10px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💵</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 800; font-size: 1rem; color: #15803d; margin-bottom: 3px;">Thanh toán khi nhận hàng (COD)</div>
+            <div style="font-size: 0.85rem; color: #475569; line-height: 1.4;">Nhận hàng tận nơi, kiểm tra hoa quả và thanh toán tiền mặt cho shipper.</div>
+          </div>
+          <input type="radio" name="pay_method" id="radio-cod" value="COD" checked style="width: 20px; height: 20px; accent-color: #22c55e; cursor: pointer;" />
+        </div>
+
+        <!-- Option 2: VNPay -->
+        <div onclick="selectPaymentOption('VNPAY')" id="pay-opt-vnpay" style="padding: 16px; border: 2px solid #cbd5e1; background: #fff; border-radius: 14px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 2.2rem; background: #e0f2fe; padding: 10px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💳</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 800; font-size: 1rem; color: #0369a1; margin-bottom: 3px;">Thanh toán Online qua VNPay</div>
+            <div style="font-size: 0.85rem; color: #475569; line-height: 1.4;">Thanh toán qua Thẻ ngân hàng, Ví điện tử VNPAY hoặc Quét mã QR Code.</div>
+          </div>
+          <input type="radio" name="pay_method" id="radio-vnpay" value="VNPAY" style="width: 20px; height: 20px; accent-color: #0284c7; cursor: pointer;" />
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+        <button onclick="closePaymentMethodModal()" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: #fff; color: #475569; border-radius: 10px; font-weight: 700; cursor: pointer;">Quay lại</button>
+        <button onclick="confirmOrderWithPayment()" style="padding: 10px 24px; border: none; background: #16a34a; color: white; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);">🚀 Xác Nhận Đặt Hàng</button>
+      </div>
+    </div>
   </div>
 
   <!-- === SCRIPTS === -->

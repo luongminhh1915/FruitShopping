@@ -362,12 +362,72 @@ function initCartModalEvents() {
       localStorage.setItem('user', JSON.stringify(user));
     }
 
-    alert(`🎉 Đặt hàng thành công!\nĐơn hàng sẽ được giao đến địa chỉ:\n📍 ${userAddress}`);
-    saveCartItems([]);
-    updateCartBadge();
-    closeCartModal();
+    openPaymentMethodModal();
   });
 }
+
+let _selectedPayMethod = 'COD';
+
+window.openPaymentMethodModal = function() {
+  const modal = document.getElementById('payment-method-modal');
+  if (modal) {
+    selectPaymentOption('COD');
+    modal.classList.add('active');
+  }
+};
+
+window.closePaymentMethodModal = function() {
+  const modal = document.getElementById('payment-method-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+window.selectPaymentOption = function(type) {
+  _selectedPayMethod = type;
+  const codOpt = document.getElementById('pay-opt-cod');
+  const vnpayOpt = document.getElementById('pay-opt-vnpay');
+  const radioCod = document.getElementById('radio-cod');
+  const radioVnpay = document.getElementById('radio-vnpay');
+
+  if (type === 'COD') {
+    if (radioCod) radioCod.checked = true;
+    if (radioVnpay) radioVnpay.checked = false;
+    if (codOpt) {
+      codOpt.style.borderColor = '#22c55e';
+      codOpt.style.background = '#f0fdf4';
+    }
+    if (vnpayOpt) {
+      vnpayOpt.style.borderColor = '#cbd5e1';
+      vnpayOpt.style.background = '#fff';
+    }
+  } else {
+    if (radioCod) radioCod.checked = false;
+    if (radioVnpay) radioVnpay.checked = true;
+    if (vnpayOpt) {
+      vnpayOpt.style.borderColor = '#0284c7';
+      vnpayOpt.style.background = '#f0f9ff';
+    }
+    if (codOpt) {
+      codOpt.style.borderColor = '#cbd5e1';
+      codOpt.style.background = '#fff';
+    }
+  }
+};
+
+window.confirmOrderWithPayment = function() {
+  let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
+  let userAddress = user.address || 'Địa chỉ mặc định';
+
+  if (_selectedPayMethod === 'COD') {
+    alert(`🎉 ĐẶT HÀNG THÀNH CÔNG!\n\n📌 Phương thức: Thanh toán khi nhận hàng (COD)\n📍 Địa chỉ giao hàng: ${userAddress}\n🚚 Đơn hàng sẽ sớm được giao đến bạn!`);
+  } else {
+    alert(`💳 ĐẶT HÀNG & KẾT NỐI VNPAY THÀNH CÔNG!\n\n📌 Phương thức: Thanh toán Online qua VNPay\n📍 Địa chỉ giao hàng: ${userAddress}\n🔄 Hệ thống đang chuyển hướng đến cổng thanh toán VNPay...`);
+  }
+
+  saveCartItems([]);
+  updateCartBadge();
+  closePaymentMethodModal();
+  closeCartModal();
+};
 
 /* =============================
    TOAST NOTIFICATION
