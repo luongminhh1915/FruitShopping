@@ -193,10 +193,84 @@
 
         <!-- Revenue Tab -->
         <div class="tab-pane" id="tab-revenue">
-          <div class="blank-state">
-            <div class="blank-icon">📊</div>
-            <h3>Thống Kê Doanh Thu</h3>
-            <p>Trang này hiện đang để trống theo yêu cầu. Biểu đồ và thông số doanh thu sẽ được tích hợp tại đây.</p>
+          <!-- Revenue Stats Cards -->
+          <div class="admin-stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(22, 163, 74, 0.1); color: #16a34a;">💰</div>
+              <div class="stat-info">
+                <span class="stat-value" id="rev-stat-total" style="color: #16a34a;">0 đ</span>
+                <span class="stat-label">Tổng doanh thu thực nhận</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">📦</div>
+              <div class="stat-info">
+                <span class="stat-value" id="rev-stat-orders">0</span>
+                <span class="stat-label">Đơn hàng hoàn tất</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.1); color: #0284c7;">💳</div>
+              <div class="stat-info">
+                <span class="stat-value" id="rev-stat-vnpay" style="color: #0284c7;">0 đ</span>
+                <span class="stat-label">VNPay / Chuyển khoản</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(217, 119, 6, 0.1); color: #d97706;">💵</div>
+              <div class="stat-info">
+                <span class="stat-value" id="rev-stat-cod" style="color: #d97706;">0 đ</span>
+                <span class="stat-label">COD Tiền mặt</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Period Filters & Search -->
+          <div class="admin-filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 20px 0;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-weight: 700; color: #475569; font-size: 0.9rem; margin-right: 4px;">📅 Lọc theo:</span>
+              <button onclick="filterRevenuePeriod('ALL')" id="rev-period-ALL" class="rev-period-btn active" style="padding: 8px 16px; border-radius: 12px; border: none; background: #16a34a; color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">Tất cả</button>
+              <button onclick="filterRevenuePeriod('TODAY')" id="rev-period-TODAY" class="rev-period-btn" style="padding: 8px 16px; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">Hôm nay</button>
+              <button onclick="filterRevenuePeriod('WEEK')" id="rev-period-WEEK" class="rev-period-btn" style="padding: 8px 16px; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">Tuần này</button>
+              <button onclick="filterRevenuePeriod('MONTH')" id="rev-period-MONTH" class="rev-period-btn" style="padding: 8px 16px; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">Tháng này</button>
+            </div>
+            <div class="search-box-admin" style="max-width: 300px; margin: 0;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="rev-search-input" oninput="renderRevenueTable()" placeholder="Tìm theo mã đơn, khách hàng..." />
+            </div>
+          </div>
+
+          <!-- Top Selling Products Breakdown Card -->
+          <div style="background: #fff; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <h4 style="font-size: 1.05rem; font-weight: 800; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+              🏆 Top Sản Phẩm Đóng Góp Doanh Thu Cao Nhất
+            </h4>
+            <div id="rev-top-products-list" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Dynamic top products bars -->
+            </div>
+          </div>
+
+          <!-- Revenue Transactions Table -->
+          <div class="admin-tab-header">
+            <h3 class="tab-subtitle">📜 Nhật Ký Giao Dịch Doanh Thu</h3>
+          </div>
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th>Ngày giao dịch</th>
+                  <th>Địa chỉ giao hàng</th>
+                  <th>Phương thức thanh toán</th>
+                  <th>Số lượng mặt hàng</th>
+                  <th>Tổng giá trị</th>
+                  <th style="text-align: center;">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="revenue-table-body">
+                <!-- Dynamic rows -->
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -344,7 +418,7 @@
           <h2 class="qv-name" id="qv-name"></h2>
 
           <div class="qv-rating-row">
-            <div class="qv-stars" id="qv-stars">★★★★★</div>
+            <div class="qv-stars" id="qv-stars" style="display:none;">★★★★★</div>
             <span class="qv-rating-count" id="qv-rating-count">(0 đánh giá)</span>
           </div>
 
@@ -367,14 +441,14 @@
 
       <!-- REVIEWS SECTION -->
       <div class="qv-reviews" id="qv-reviews" style="display:none;">
-        <h3 class="qv-reviews-title">⭐ Đánh giá từ khách hàng</h3>
+        <h3 class="qv-reviews-title">💬 Đánh giá từ khách hàng</h3>
 
         <!-- Add Review Form -->
         <div class="qv-add-review-box" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
           <h4 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
             ✍️ Viết đánh giá của bạn
           </h4>
-          <div class="qv-rating-select" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <div class="qv-rating-select" style="display: none; align-items: center; gap: 8px; margin-bottom: 12px;">
             <span style="font-size: 0.9rem; font-weight: 600; color: #475569;">Đánh giá sao:</span>
             <div class="star-rating-picker" id="qv-star-picker" style="display: flex; gap: 4px; cursor: pointer; font-size: 1.4rem; color: #f59e0b;">
               <span data-star="1" class="star-item">★</span>

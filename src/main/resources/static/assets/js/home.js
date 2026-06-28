@@ -177,7 +177,7 @@ function renderCartModal() {
   if (totalPriceEl) totalPriceEl.textContent = formatPrice(grandTotal);
 }
 
-window.saveCartAddress = async function() {
+window.saveCartAddress = async function () {
   const input = document.getElementById('cart-address-input');
   if (!input) return;
   const val = input.value.trim();
@@ -222,7 +222,7 @@ window.saveCartAddress = async function() {
   renderCartModal();
 };
 
-window.changeCartQty = function(index, delta) {
+window.changeCartQty = function (index, delta) {
   let items = getCartItems();
   if (items[index]) {
     items[index].quantity = (items[index].quantity || 1) + delta;
@@ -235,7 +235,7 @@ window.changeCartQty = function(index, delta) {
   }
 };
 
-window.removeCartItem = function(index) {
+window.removeCartItem = function (index) {
   let items = getCartItems();
   if (items[index]) {
     showToast(`🗑️ Đã xóa "${items[index].name}" khỏi giỏ hàng!`, 'info');
@@ -368,7 +368,7 @@ function initCartModalEvents() {
 
 let _selectedPayMethod = 'COD';
 
-window.openPaymentMethodModal = function() {
+window.openPaymentMethodModal = function () {
   const modal = document.getElementById('payment-method-modal');
   if (modal) {
     selectPaymentOption('COD');
@@ -376,12 +376,12 @@ window.openPaymentMethodModal = function() {
   }
 };
 
-window.closePaymentMethodModal = function() {
+window.closePaymentMethodModal = function () {
   const modal = document.getElementById('payment-method-modal');
   if (modal) modal.classList.remove('active');
 };
 
-window.selectPaymentOption = function(type) {
+window.selectPaymentOption = function (type) {
   _selectedPayMethod = type;
   const codOpt = document.getElementById('pay-opt-cod');
   const vnpayOpt = document.getElementById('pay-opt-vnpay');
@@ -413,20 +413,282 @@ window.selectPaymentOption = function(type) {
   }
 };
 
-window.confirmOrderWithPayment = function() {
+let _pendingVnPayOrder = null;
+
+window.confirmOrderWithPayment = function () {
   let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
   let userAddress = user.address || 'Địa chỉ mặc định';
+  const cartItems = getCartItems();
 
-  if (_selectedPayMethod === 'COD') {
-    alert(`🎉 ĐẶT HÀNG THÀNH CÔNG!\n\n📌 Phương thức: Thanh toán khi nhận hàng (COD)\n📍 Địa chỉ giao hàng: ${userAddress}\n🚚 Đơn hàng sẽ sớm được giao đến bạn!`);
+  const numericTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const formattedTotal = document.getElementById('cart-total-price')?.textContent || '0 đ';
+
+  const orderObj = {
+    orderId: 'DH' + Math.floor(100000 + Math.random() * 900000),
+    date: new Date().toLocaleString('vi-VN'),
+    address: userAddress,
+    payMethod: _selectedPayMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Thanh toán Online (VNPay)',
+    totalPrice: formattedTotal,
+    numericTotal: numericTotal,
+    items: [...cartItems]
+  };
+
+  if (_selectedPayMethod === 'VNPAY') {
+    openVnPayQrModal(orderObj);
   } else {
-    alert(`💳 ĐẶT HÀNG & KẾT NỐI VNPAY THÀNH CÔNG!\n\n📌 Phương thức: Thanh toán Online qua VNPay\n📍 Địa chỉ giao hàng: ${userAddress}\n🔄 Hệ thống đang chuyển hướng đến cổng thanh toán VNPay...`);
+    // Record COD order history immediately
+    try {
+      const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
+      const historyList = historyRaw ? JSON.parse(historyRaw) : [];
+      historyList.unshift(orderObj);
+      localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
+    } catch (e) { console.error(e); }
+
+    showToast('🎉 Bạn đã đặt hàng thành công!', 'success');
+    alert(`🎉 Bạn đã đặt hàng thành công!\n\n📌 Phương thức: Thanh toán khi nhận hàng (COD)\n📍 Địa chỉ giao hàng: ${userAddress}\n🚚 Cảm ơn bạn đã mua sắm tại FruitFresh!`);
+
+    saveCartItems([]);
+    updateCartBadge();
+    closePaymentMethodModal();
+    closeCartModal();
   }
+};
+
+window.openVnPayQrModal = function (orderObj) {
+  _pendingVnPayOrder = orderObj;
+  const modal = document.getElementById('vnpay-qr-modal');
+  if (!modal) return;
+
+  document.getElementById('vnpay-display-amount').textContent = orderObj.totalPrice;
+  document.getElementById('vnpay-order-code').textContent = `#${orderObj.orderId}`;
+  document.getElementById('vnpay-order-memo').textContent = `THANH TOAN ${orderObj.orderId}`;
+
+  const amount = orderObj.numericTotal || 100000;
+  // Generate real dynamic VietQR / VNPay QR Code for Techcombank
+  const qrUrl = `https://img.vietqr.io/image/TCB-76488888888-compact2.png?amount=${amount}&addInfo=THANHTOAN_${orderObj.orderId}&accountName=LUONG%20HUU%20MINH`;
+  document.getElementById('vnpay-qr-img').src = qrUrl;
+
+  modal.style.display = 'flex';
+  modal.style.opacity = '1';
+  modal.style.visibility = 'visible';
+};
+
+window.closeVnPayQrModal = function () {
+  const modal = document.getElementById('vnpay-qr-modal');
+  if (modal) {
+    modal.style.opacity = '0';
+    modal.style.visibility = 'hidden';
+    modal.style.display = 'none';
+  }
+};
+
+window.simulateVnPaySuccess = function () {
+  if (!_pendingVnPayOrder) return;
+
+  try {
+    const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
+    const historyList = historyRaw ? JSON.parse(historyRaw) : [];
+    historyList.unshift(_pendingVnPayOrder);
+    localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
+  } catch (e) { console.error(e); }
+
+  showToast('🎉 Bạn đã đặt hàng & thanh toán VNPay thành công!', 'success');
+  alert(`💳 THANH TOÁN VNPAY THÀNH CÔNG!\n\n📌 Mã đơn hàng: #${_pendingVnPayOrder.orderId}\n💰 Số tiền: ${_pendingVnPayOrder.totalPrice}\n📍 Địa chỉ: ${_pendingVnPayOrder.address}\n\n🚚 Đơn hàng của bạn đã được xác nhận và sẽ sớm giao đến bạn!`);
 
   saveCartItems([]);
   updateCartBadge();
+  closeVnPayQrModal();
   closePaymentMethodModal();
   closeCartModal();
+  _pendingVnPayOrder = null;
+};
+
+let _currentOhFilter = 'ALL';
+
+function getStoredOrders() {
+  try {
+    const raw = localStorage.getItem('USER_ORDER_HISTORY');
+    if (raw) return JSON.parse(raw);
+  } catch (e) { }
+
+  // Default sample orders for rich initial experience
+  const sampleOrders = [
+    {
+      orderId: 'DH928401',
+      date: '27/06/2026 14:20',
+      address: 'Số 12 Chùa Bộc, Đống Đa, Hà Nội',
+      payMethod: 'Thanh toán khi nhận hàng (COD)',
+      status: 'DELIVERED',
+      statusText: '✅ Đã giao hàng',
+      totalPrice: '200.000 đ',
+      items: [
+        { productId: 1, name: 'Sầu riêng Monthong', price: 120000, quantity: 1 },
+        { productId: 2, name: 'Bơ Booth Đắk Lắk', price: 80000, quantity: 1 }
+      ]
+    },
+    {
+      orderId: 'DH812940',
+      date: '20/06/2026 09:15',
+      address: 'Số 12 Chùa Bộc, Đống Đa, Hà Nội',
+      payMethod: 'Thanh toán Online (VNPay)',
+      status: 'DELIVERED',
+      statusText: '✅ Đã giao hàng',
+      totalPrice: '95.000 đ',
+      items: [
+        { productId: 3, name: 'Dưa Hấu Không Hạt', price: 25000, quantity: 1 },
+        { productId: 4, name: 'Nho Mẫu Đơn', price: 70000, quantity: 1 }
+      ]
+    }
+  ];
+  localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(sampleOrders));
+  return sampleOrders;
+}
+
+window.openOrderHistoryModal = function () {
+  const modal = document.getElementById('order-history-modal');
+  if (!modal) return;
+  filterOrderHistory('ALL');
+  modal.style.display = 'flex';
+  modal.style.opacity = '1';
+  modal.style.visibility = 'visible';
+  modal.classList.add('active');
+};
+
+window.filterOrderHistory = function (status) {
+  _currentOhFilter = status;
+  ['ALL', 'DELIVERED', 'PROCESSING'].forEach(st => {
+    const btn = document.getElementById(`oh-tab-${st}`);
+    if (btn) {
+      if (st === status) {
+        btn.style.background = '#16a34a';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+      } else {
+        btn.style.background = '#f8fafc';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
+      }
+    }
+  });
+
+  renderOrderHistoryList();
+};
+
+function renderOrderHistoryList() {
+  const body = document.getElementById('order-history-body');
+  if (!body) return;
+
+  const orders = getStoredOrders();
+  const filtered = orders.filter(o => {
+    const st = o.status || 'DELIVERED';
+    if (_currentOhFilter === 'ALL') return true;
+    return st === _currentOhFilter;
+  });
+
+  if (filtered.length === 0) {
+    body.innerHTML = `
+      <div style="text-align:center; padding: 40px 20px; color: #64748b;">
+        <div style="font-size: 3.5rem; margin-bottom: 12px;">📦</div>
+        <h4 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Không tìm thấy đơn hàng nào</h4>
+        <p style="font-size: 0.88rem;">Chưa có đơn hàng phù hợp với trạng thái đã chọn.</p>
+      </div>
+    `;
+    return;
+  }
+
+  body.innerHTML = filtered.map((order, index) => {
+    const statusText = order.statusText || (order.status === 'PROCESSING' ? '⏳ Đang xử lý' : '✅ Đã giao hàng');
+    const statusBg = order.status === 'PROCESSING' ? '#fef3c7' : '#dcfce7';
+    const statusColor = order.status === 'PROCESSING' ? '#d97706' : '#15803d';
+
+    return `
+      <div style="border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 18px; margin-bottom: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: all 0.2s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 12px;">
+          <div>
+            <span style="font-weight: 800; font-size: 1rem; color: #16a34a; margin-right: 8px;">🧾 Mã đơn: #${order.orderId}</span>
+            <span style="font-size: 0.8rem; background: ${statusBg}; color: ${statusColor}; padding: 3px 10px; border-radius: 12px; font-weight: 700;">${statusText}</span>
+          </div>
+          <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">🕒 ${order.date}</span>
+        </div>
+
+        <div style="font-size: 0.88rem; color: #475569; margin-bottom: 6px;">
+          <strong>📍 Giao đến:</strong> ${order.address}
+        </div>
+        <div style="font-size: 0.88rem; color: #475569; margin-bottom: 12px;">
+          <strong>💳 Thanh toán:</strong> <span style="color: #0284c7; font-weight: 700;">${order.payMethod}</span>
+        </div>
+
+        <div style="background: #f8fafc; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid #f1f5f9;">
+          ${(order.items || []).map(item => `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size: 0.88rem; color: #334155; margin-bottom: 6px;">
+              <span><strong>🍎 ${item.name}</strong> <span style="color:#64748b;">x${item.quantity}</span></span>
+              <span style="font-weight: 700; color: #1e293b;">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price * item.quantity)}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size: 0.95rem; font-weight: 800; color: #1e293b; border-top: 1px dashed #e2e8f0; padding-top: 12px;">
+          <div style="display:flex; align-items:center; gap: 6px;">
+            <span>Tổng tiền:</span>
+            <span style="color: #16a34a; font-size: 1.15rem;">${order.totalPrice}</span>
+          </div>
+          <button onclick="reorderHistoryItems('${order.orderId}')" style="background: #f0fdf4; color: #16a34a; border: 1.5px solid #86efac; padding: 7px 14px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+            🔄 Mua lại
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.reorderHistoryItems = function (orderId) {
+  const orders = getStoredOrders();
+  const order = orders.find(o => o.orderId === orderId);
+  if (!order || !order.items) return;
+
+  const currentCart = getCartItems();
+  order.items.forEach(item => {
+    const existing = currentCart.find(c => c.productId === item.productId || c.name === item.name);
+    if (existing) {
+      existing.quantity += item.quantity;
+    } else {
+      currentCart.push({ ...item });
+    }
+  });
+
+  saveCartItems(currentCart);
+  updateCartBadge();
+  closeOrderHistoryModal();
+  openCartModal();
+  showToast('🎉 Đã thêm tất cả sản phẩm vào giỏ hàng!', 'success');
+};
+
+window.closeOrderHistoryModal = function () {
+  const modal = document.getElementById('order-history-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.opacity = '0';
+    modal.style.visibility = 'hidden';
+    modal.style.display = 'none';
+  }
+};
+
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('order-history-modal');
+  if (modal && modal.style.display === 'flex' && e.target === modal) {
+    closeOrderHistoryModal();
+  }
+});
+
+window.closeUserDropdown = function () {
+  const menu = document.getElementById('user-dropdown-menu');
+  if (menu) menu.style.display = 'none';
+};
+
+window.handleUserLogout = function () {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.reload();
 };
 
 /* =============================
@@ -479,7 +741,6 @@ function renderProductCard(product) {
         <h3 class="product-name" onclick="quickView(${product.productId})" style="cursor:pointer;">${product.name}</h3>
         <div class="product-meta">
           <span class="product-origin">📍 ${product.origin || 'Việt Nam'}</span>
-          <div class="stars">⭐⭐⭐⭐⭐</div>
         </div>
         <div class="product-price-row">
           <div>
@@ -721,7 +982,7 @@ function renderPaginatedProducts(page = 1) {
   }
 }
 
-window.goToPage = function(page) {
+window.goToPage = function (page) {
   const totalPages = Math.ceil(_currentFilteredList.length / PAGE_SIZE);
   if (page < 1 || page > totalPages) return;
   renderPaginatedProducts(page);
@@ -940,10 +1201,8 @@ function populateQuickView(product) {
   document.getElementById('qv-origin').textContent = product.origin || '—';
 
   // ---- Reviews ----
-  const prodReviews = getProductReviews(product);
-  const starCount = 4 + Math.round(Math.random());
-  document.getElementById('qv-stars').textContent = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
-  document.getElementById('qv-rating-count').textContent = `(${prodReviews.length} đánh giá)`;
+  const starCount = 5;
+  document.getElementById('qv-stars').textContent = '★'.repeat(starCount);
 
   // Description
   const descEl = document.getElementById('qv-desc');
@@ -953,24 +1212,8 @@ function populateQuickView(product) {
     descEl.textContent = `${product.name} – trái cây tươi ngon, được tuyển chọn kỹ từ ${product.origin || 'vùng nguyên sản'} đảm bảo tiêu chuẩn an toàn vệ sinh thực phẩm. Giao hàng nhanh, đóng gói cẩn thận, giữ nguyên độ tươi ngon.`;
   }
 
-  const reviewsList = document.getElementById('qv-reviews-list');
-  if (prodReviews.length === 0) {
-    reviewsList.innerHTML = `<div class="qv-no-reviews">😶 Chưa có đánh giá nào cho sản phẩm này.</div>`;
-  } else {
-    reviewsList.innerHTML = prodReviews.map((r, i) => `
-      <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
-        <div class="qv-review-avatar">${r.avatar}</div>
-        <div class="qv-review-content">
-          <div class="qv-review-header">
-            <span class="qv-review-name">${r.name}</span>
-            <span class="qv-review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</span>
-            <span class="qv-review-date">${r.date}</span>
-          </div>
-          <p class="qv-review-text">${r.comment}</p>
-        </div>
-      </div>
-    `).join('');
-  }
+  // Load Database reviews asynchronously
+  loadAndRenderProductReviews(product);
 
   // Initialize Star Picker
   initStarPicker();
@@ -979,6 +1222,44 @@ function populateQuickView(product) {
   loading.style.display = 'none';
   body.style.display = 'grid';
   reviews.style.display = 'block';
+}
+
+async function loadAndRenderProductReviews(product) {
+  const reviewsList = document.getElementById('qv-reviews-list');
+  const ratingCount = document.getElementById('qv-rating-count');
+  if (!reviewsList || !product) return;
+
+  let prodReviews = getProductReviews(product);
+  try {
+    const res = await fetch(`/api/products/${product.productId}/reviews`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+        prodReviews = json.data;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load reviews from DB:', e);
+  }
+
+  if (ratingCount) ratingCount.textContent = `(${prodReviews.length} đánh giá)`;
+
+  if (prodReviews.length === 0) {
+    reviewsList.innerHTML = `<div class="qv-no-reviews">😶 Chưa có đánh giá nào cho sản phẩm này.</div>`;
+  } else {
+    reviewsList.innerHTML = prodReviews.map((r, i) => `
+      <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
+        <div class="qv-review-avatar">${r.avatar || '👤'}</div>
+        <div class="qv-review-content">
+          <div class="qv-review-header">
+            <span class="qv-review-name">${r.name || 'Khách hàng'}</span>
+            <span class="qv-review-date">${r.date || 'Vừa xong'}</span>
+          </div>
+          <p class="qv-review-text">${r.comment}</p>
+        </div>
+      </div>
+    `).join('');
+  }
 }
 
 let _qvSelectedStars = 5;
@@ -1013,7 +1294,7 @@ function initStarPicker() {
   });
 }
 
-window.submitProductReview = function () {
+window.submitProductReview = async function () {
   if (!_qvCurrentProduct) return;
   const token = localStorage.getItem('token');
   if (!token) {
@@ -1043,6 +1324,20 @@ window.submitProductReview = function () {
     date: 'Vừa xong'
   };
 
+  // Save to Database via REST API
+  try {
+    await fetch(`/api/products/${_qvCurrentProduct.productId}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ comment: comment, stars: _qvSelectedStars })
+    });
+  } catch (e) {
+    console.error('Failed to save review to database:', e);
+  }
+
   const map = getStoredReviewsMap();
   const prodId = _qvCurrentProduct.productId;
   if (!map[prodId]) {
@@ -1051,32 +1346,10 @@ window.submitProductReview = function () {
   map[prodId].unshift(newReview);
   saveStoredReviewsMap(map);
 
-  const prodReviews = map[prodId];
   input.value = '';
+  await loadAndRenderProductReviews(_qvCurrentProduct);
 
-  const reviewsList = document.getElementById('qv-reviews-list');
-  if (reviewsList) {
-    reviewsList.innerHTML = prodReviews.map((r, i) => `
-      <div class="qv-review-card" style="animation-delay:${i * 0.06}s">
-        <div class="qv-review-avatar">${r.avatar}</div>
-        <div class="qv-review-content">
-          <div class="qv-review-header">
-            <span class="qv-review-name">${r.name}</span>
-            <span class="qv-review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</span>
-            <span class="qv-review-date">${r.date}</span>
-          </div>
-          <p class="qv-review-text">${r.comment}</p>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  const ratingCount = document.getElementById('qv-rating-count');
-  if (ratingCount) {
-    ratingCount.textContent = `(${prodReviews.length} đánh giá)`;
-  }
-
-  showToast('🎉 Cảm ơn bạn đã gửi đánh giá sản phẩm!', 'success');
+  showToast('🎉 Cảm ơn bạn đã gửi đánh giá sản phẩm vào hệ thống!', 'success');
 };
 
 function closeQuickView() {
@@ -1225,34 +1498,71 @@ function initUserNavbar() {
       const existingProfile = document.getElementById('user-profile-nav');
       if (existingProfile) existingProfile.remove();
 
-      // Create profile nav wrapper
+      // Create profile nav wrapper with dropdown
       const profileNav = document.createElement('div');
       profileNav.id = 'user-profile-nav';
       profileNav.className = 'user-profile-nav';
-      profileNav.style.display = 'flex';
-      profileNav.style.alignItems = 'center';
-      profileNav.style.gap = '12px';
+      profileNav.style.position = 'relative';
+      profileNav.style.display = 'inline-block';
       profileNav.style.marginLeft = '12px';
 
       const avatar = user.avatar || '👤';
       const name = user.fullName || user.email;
 
       profileNav.innerHTML = `
-        <span class="user-avatar-nav" style="font-size: 18px; cursor: pointer; user-select: none;">${avatar}</span>
-        <span class="user-name-nav" style="font-weight: 600; color: var(--color-dark); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">${name}</span>
-        <button class="btn-logout-nav" id="btn-logout" style="font-size: 13px; font-weight: 700; color: var(--color-accent); background: #fee2e2; padding: 6px 12px; border-radius: var(--radius-full); transition: var(--transition-fast);">Đăng Xuất</button>
+        <div id="user-dropdown-trigger" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 14px; border-radius: 20px; background: #f1f5f9; transition: all 0.2s ease; border: 1.5px solid #cbd5e1; user-select: none;">
+          <span style="font-size: 18px;">${avatar}</span>
+          <span style="font-weight: 700; color: #1e293b; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.92rem;">${name}</span>
+          <span style="font-size: 10px; color: #64748b; transition: transform 0.2s ease;" id="user-dropdown-arrow">▼</span>
+        </div>
+        <div id="user-dropdown-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 8px); background: #ffffff; min-width: 210px; border-radius: 16px; box-shadow: 0 12px 30px -5px rgba(0,0,0,0.18), 0 8px 10px -6px rgba(0,0,0,0.08); border: 1.5px solid #e2e8f0; z-index: 9999; overflow: hidden; padding: 6px 0; animation: fadeIn 0.2s ease;">
+          <div id="opt-view-profile" style="padding: 12px 18px; font-size: 0.92rem; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            👤 <span>View profile</span>
+          </div>
+          <div id="opt-order-history" style="padding: 12px 18px; font-size: 0.92rem; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            📦 <span>Lịch sử mua hàng</span>
+          </div>
+          <div style="height: 1px; background: #f1f5f9; margin: 4px 0;"></div>
+          <div id="opt-logout" style="padding: 12px 18px; font-size: 0.92rem; font-weight: 700; color: #ef4444; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+            🚪 <span>Đăng xuất</span>
+          </div>
+        </div>
       `;
 
       navbarActions.appendChild(profileNav);
 
-      // Add click listeners to profile trigger
-      profileNav.querySelector('.user-avatar-nav').addEventListener('click', openProfileModal);
-      profileNav.querySelector('.user-name-nav').addEventListener('click', openProfileModal);
+      const trigger = document.getElementById('user-dropdown-trigger');
+      const menu = document.getElementById('user-dropdown-menu');
+      const arrow = document.getElementById('user-dropdown-arrow');
 
-      document.getElementById('btn-logout')?.addEventListener('click', () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.reload();
+      trigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = menu.style.display === 'block';
+        menu.style.display = isOpen ? 'none' : 'block';
+        if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+      });
+
+      profileNav.querySelector('#opt-view-profile')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeUserDropdown();
+        window.openProfileModal();
+      });
+
+      profileNav.querySelector('#opt-order-history')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeUserDropdown();
+        window.openOrderHistoryModal();
+      });
+
+      profileNav.querySelector('#opt-logout')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeUserDropdown();
+        window.handleUserLogout();
+      });
+
+      document.addEventListener('click', () => {
+        if (menu) menu.style.display = 'none';
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
       });
     } catch (e) {
       console.error('Error parsing user data from localStorage', e);
@@ -1309,6 +1619,7 @@ async function openProfileModal() {
     showToast('❌ Lỗi: ' + err.message, 'error');
   }
 }
+window.openProfileModal = openProfileModal;
 
 function initProfileModalEvents() {
   const modal = document.getElementById('profile-modal');

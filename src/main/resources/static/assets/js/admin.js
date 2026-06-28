@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLogout();
   initProductManagement();
   initUserManagement();
+  initRevenueManagement();
 });
 
 
@@ -59,6 +60,10 @@ function initTabNavigation() {
       if (headerTitle) {
         const textSpan = btn.querySelector('.menu-text');
         headerTitle.textContent = textSpan ? textSpan.textContent : 'Quản trị';
+      }
+
+      if (targetTab === 'revenue') {
+        renderRevenueDashboard();
       }
     });
   });
@@ -635,7 +640,6 @@ function populateQuickView(product) {
         <div class="qv-review-content">
           <div class="qv-review-header">
             <span class="qv-review-name">${r.name}</span>
-            <span class="qv-review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</span>
             <span class="qv-review-date">${r.date}</span>
           </div>
           <p class="qv-review-text">${r.comment}</p>
@@ -771,7 +775,7 @@ function renderUsersTable() {
   const roleVal = document.getElementById('user-role-filter')?.value || '';
 
   const filteredUsers = usersList.filter(user => {
-    const matchSearch = !searchVal || 
+    const matchSearch = !searchVal ||
       (user.fullName && user.fullName.toLowerCase().includes(searchVal)) ||
       (user.email && user.email.toLowerCase().includes(searchVal)) ||
       (user.phone && user.phone.toLowerCase().includes(searchVal));
@@ -897,6 +901,250 @@ window.changeUserRole = async function (userId, roleId, roleName) {
     console.error(err);
     alert('❌ Lỗi: ' + err.message);
   }
+};
+
+
+/* ==========================================
+   REVENUE MANAGEMENT DASHBOARD
+   ========================================== */
+let _revCurrentPeriod = 'ALL';
+
+function initRevenueManagement() {
+  renderRevenueDashboard();
+}
+
+function getStoredRevenueOrders() {
+  try {
+    const raw = localStorage.getItem('USER_ORDER_HISTORY');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) { console.error(e); }
+
+  // Default rich sample orders if empty
+  return [
+    {
+      orderId: 'DH928401',
+      date: '27/06/2026 14:20',
+      address: 'Số 12 Chùa Bộc, Đống Đa, Hà Nội',
+      payMethod: 'Thanh toán khi nhận hàng (COD)',
+      totalPrice: '200.000 đ',
+      numericTotal: 200000,
+      status: 'DELIVERED',
+      items: [
+        { productId: 1, name: 'Sầu riêng Monthong', price: 120000, quantity: 1 },
+        { productId: 2, name: 'Bơ Booth Đắk Lắk', price: 80000, quantity: 1 }
+      ]
+    },
+    {
+      orderId: 'DH812940',
+      date: '20/06/2026 09:15',
+      address: 'Số 12 Chùa Bộc, Đống Đa, Hà Nội',
+      payMethod: 'Thanh toán Online (VNPay)',
+      totalPrice: '95.000 đ',
+      numericTotal: 95000,
+      status: 'DELIVERED',
+      items: [
+        { productId: 3, name: 'Dưa Hấu Không Hạt', price: 25000, quantity: 1 },
+        { productId: 4, name: 'Nho Mẫu Đơn', price: 70000, quantity: 1 }
+      ]
+    }
+  ];
+}
+
+window.filterRevenuePeriod = function (period) {
+  _revCurrentPeriod = period;
+  ['ALL', 'TODAY', 'WEEK', 'MONTH'].forEach(p => {
+    const btn = document.getElementById(`rev-period-${p}`);
+    if (btn) {
+      if (p === period) {
+        btn.style.background = '#16a34a';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+      } else {
+        btn.style.background = '#fff';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
+      }
+    }
+  });
+  renderRevenueDashboard();
+};
+
+async function renderRevenueDashboard() {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const res = await fetch(`/api/admin/revenue/stats?period=${_revCurrentPeriod}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          const stats = json.data;
+          const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+
+          const totalEl = document.getElementById('rev-stat-total');
+          const ordersEl = document.getElementById('rev-stat-orders');
+          const vnpayEl = document.getElementById('rev-stat-vnpay');
+          const codEl = document.getElementById('rev-stat-cod');
+
+          if (totalEl) totalEl.textContent = fmt(stats.totalRevenue);
+          if (ordersEl) ordersEl.textContent = stats.totalOrders;
+          if (vnpayEl) vnpayEl.textContent = fmt(stats.vnpayRevenue);
+          if (codEl) codEl.textContent = fmt(stats.codRevenue);
+        }
+      }
+    } catch (e) {
+      console.log('Fetching database stats via API, fallback to local calculation:', e);
+    }
+  }
+
+  const allOrders = getStoredRevenueOrders();
+
+  const now = new Date();
+  const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  const monthStr = `/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+  const filteredOrders = allOrders.filter(order => {
+    if (_revCurrentPeriod === 'ALL') return true;
+    const dateStr = order.date || '';
+    if (_revCurrentPeriod === 'TODAY') {
+      return dateStr.includes(todayStr) || dateStr.includes('Vừa xong');
+    }
+    if (_revCurrentPeriod === 'MONTH' || _revCurrentPeriod === 'WEEK') {
+      return dateStr.includes(monthStr) || dateStr.includes('Vừa xong');
+    }
+    return true;
+  });
+
+  let totalRev = 0;
+  let vnpayRev = 0;
+  let codRev = 0;
+  let deliveredCount = 0;
+  const productSalesMap = {};
+
+  filteredOrders.forEach(order => {
+    let amt = order.numericTotal;
+    if (!amt && order.totalPrice) {
+      amt = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) || 0;
+    }
+    if (!amt) amt = 0;
+
+    totalRev += amt;
+    deliveredCount += 1;
+
+    if (order.payMethod && order.payMethod.includes('VNPay')) {
+      vnpayRev += amt;
+    } else {
+      codRev += amt;
+    }
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(item => {
+        const pName = item.name || 'Sản phẩm';
+        const pQty = item.quantity || 1;
+        const pTotal = (item.price || 0) * pQty;
+        if (!productSalesMap[pName]) {
+          productSalesMap[pName] = { name: pName, qty: 0, total: 0 };
+        }
+        productSalesMap[pName].qty += pQty;
+        productSalesMap[pName].total += pTotal;
+      });
+    }
+  });
+
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+
+  const totalEl = document.getElementById('rev-stat-total');
+  const ordersEl = document.getElementById('rev-stat-orders');
+  const vnpayEl = document.getElementById('rev-stat-vnpay');
+  const codEl = document.getElementById('rev-stat-cod');
+
+  if (totalEl && (!token || totalEl.textContent === '0 đ')) totalEl.textContent = fmt(totalRev);
+  if (ordersEl && (!token || ordersEl.textContent === '0')) ordersEl.textContent = deliveredCount;
+  if (vnpayEl && (!token || vnpayEl.textContent === '0 đ')) vnpayEl.textContent = fmt(vnpayRev);
+  if (codEl && (!token || codEl.textContent === '0 đ')) codEl.textContent = fmt(codRev);
+
+  const topListEl = document.getElementById('rev-top-products-list');
+  if (topListEl) {
+    const sortedProducts = Object.values(productSalesMap).sort((a, b) => b.total - a.total).slice(0, 4);
+    if (sortedProducts.length === 0) {
+      topListEl.innerHTML = '<div style="font-size:0.9rem; color:#64748b;">Chưa có dữ liệu thống kê sản phẩm.</div>';
+    } else {
+      const maxTotal = sortedProducts[0].total || 1;
+      topListEl.innerHTML = sortedProducts.map((p, idx) => {
+        const pct = Math.min(100, Math.round((p.total / maxTotal) * 100));
+        const medals = ['🥇', '🥈', '🥉', '🏅'];
+        return `
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; color:#334155; margin-bottom:4px;">
+              <span>${medals[idx] || '🍎'} ${p.name} <span style="font-size:0.8rem; color:#64748b; font-weight:500;">(Đã bán: ${p.qty})</span></span>
+              <span style="color:#16a34a;">${fmt(p.total)}</span>
+            </div>
+            <div style="background:#f1f5f9; height:8px; border-radius:4px; overflow:hidden;">
+              <div style="background: linear-gradient(90deg, #16a34a, #22c55e); height:100%; width:${pct}%; border-radius:4px; transition:width 0.5s;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  renderRevenueTable(filteredOrders);
+}
+
+window.renderRevenueTable = function (activeOrders) {
+  const body = document.getElementById('revenue-table-body');
+  if (!body) return;
+
+  const searchKeyword = (document.getElementById('rev-search-input')?.value || '').toLowerCase().trim();
+  const orders = activeOrders || getStoredRevenueOrders();
+
+  const filtered = orders.filter(o => {
+    if (!searchKeyword) return true;
+    const matchId = (o.orderId || '').toLowerCase().includes(searchKeyword);
+    const matchAddr = (o.address || '').toLowerCase().includes(searchKeyword);
+    const matchPay = (o.payMethod || '').toLowerCase().includes(searchKeyword);
+    return matchId || matchAddr || matchPay;
+  });
+
+  if (filtered.length === 0) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding: 30px; color: #64748b;">
+          🔍 Không tìm thấy nhật ký giao dịch nào phù hợp.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+
+  body.innerHTML = filtered.map(o => {
+    let amt = o.numericTotal;
+    if (!amt && o.totalPrice) {
+      amt = parseInt(o.totalPrice.replace(/[^0-9]/g, '')) || 0;
+    }
+    const formattedAmt = amt ? fmt(amt) : (o.totalPrice || '0 đ');
+    const isVnPay = o.payMethod && o.payMethod.includes('VNPay');
+    const payBadgeClass = isVnPay ? 'background:#e0f2fe; color:#0369a1;' : 'background:#fef3c7; color:#d97706;';
+    const itemsCount = (o.items || []).reduce((sum, i) => sum + (i.quantity || 1), 0) || 1;
+
+    return `
+      <tr>
+        <td><strong style="color:#16a34a;">#${o.orderId}</strong></td>
+        <td style="font-size:0.85rem; color:#64748b;">🕒 ${o.date || 'Vừa xong'}</td>
+        <td style="font-size:0.85rem; max-width: 200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
+        <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payBadgeClass}">${o.payMethod}</span></td>
+        <td style="text-align:center; font-weight:700;">${itemsCount} sp</td>
+        <td style="font-weight:800; color:#1e293b;">${formattedAmt}</td>
+        <td style="text-align:center;"><span class="status-badge status-active" style="background:#dcfce7; color:#15803d;">Thành công</span></td>
+      </tr>
+    `;
+  }).join('');
 };
 
 
