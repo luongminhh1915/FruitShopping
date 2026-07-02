@@ -240,6 +240,82 @@ public class AuthServiceImpl implements AuthService {
 
     /*
      * =============================================
+     * QUÊN MẬT KHẨU
+     * =============================================
+     */
+    @Override
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+
+        // 1. Kiểm tra email tồn tại
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại trong hệ thống!"));
+
+        // 2. Xóa các OTP đặt lại mật khẩu cũ của email này
+        otpRepository.deleteByEmailAndOtpType(email, "RESET_PASSWORD");
+
+        // 3. Tạo mã OTP mới
+        String otp = generateOtp();
+        OtpVerification otpEntity = OtpVerification.builder()
+                .email(email)
+                .otpCode(otp)
+                .otpType("RESET_PASSWORD")
+                .isUsed(false)
+                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRE_MINUTES))
+                .build();
+        otpRepository.save(otpEntity);
+
+        // 4. Gửi email xác thực đặt lại mật khẩu
+        emailService.sendResetPasswordOtpEmail(email, otp, user.getFullName());
+        log.info("📧 Đã gửi mã khôi phục mật khẩu OTP {} cho email: {}", otp, email);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        String otpCode = request.getOtpCode().trim();
+
+        // 1. Tìm User
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản người dùng!"));
+
+        // 2. Tìm OTP mới nhất cho đặt lại mật khẩu
+        OtpVerification otp = otpRepository
+                .findTopByEmailAndOtpTypeAndIsUsedFalseOrderByCreatedAtDesc(email, "RESET_PASSWORD")
+                .orElseThrow(() -> new IllegalArgumentException("Mã OTP khôi phục mật khẩu không hợp lệ hoặc đã sử dụng!"));
+
+        // 3. Kiểm tra hết hạn
+        if (otp.isExpired()) {
+            throw new IllegalArgumentException("Mã OTP đã hết hạn! Vui lòng gửi lại mã mới.");
+        }
+
+        // 4. Kiểm tra mã khớp
+        if (!otp.getOtpCode().equals(otpCode)) {
+            throw new IllegalArgumentException("Mã OTP không chính xác!");
+        }
+
+        // 5. Kiểm tra mật khẩu khớp
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
+            throw new IllegalArgumentException("Mật khẩu mới tối thiểu phải có 8 ký tự!");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Mật khẩu xác nhận không khớp!");
+        }
+
+        // 6. Đổi mật khẩu
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // 7. Đánh dấu OTP đã sử dụng
+        otp.setIsUsed(true);
+        otpRepository.save(otp);
+        log.info("🔒 Đổi mật khẩu thành công cho tài khoản: {}", email);
+    }
+
+    /*
+     * =============================================
      * HELPERS
      * =============================================
      */

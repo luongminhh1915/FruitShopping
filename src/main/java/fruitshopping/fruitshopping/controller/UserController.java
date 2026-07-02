@@ -50,4 +50,22 @@ public class UserController {
             return ResponseEntity.status(500).body(ApiResponse.error("Lỗi hệ thống: " + e.getMessage()));
         }
     }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody fruitshopping.fruitshopping.dto.request.ChangePasswordRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Bạn chưa đăng nhập!"));
+        }
+
+        String email = authentication.getName();
+        try {
+            userService.changePassword(email, request);
+            return ResponseEntity.ok(ApiResponse.ok("Mật khẩu của bạn đã được thay đổi thành công!"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Lỗi hệ thống: " + e.getMessage()));
+        }
+    }
 }

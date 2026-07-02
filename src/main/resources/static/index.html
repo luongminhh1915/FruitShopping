@@ -357,6 +357,33 @@
           <input type="text" id="profile-address" class="profile-form-input" />
         </div>
 
+        <!-- Change Password Expandable Section -->
+        <div style="margin-top: 16px; border-top: 1px dashed #cbd5e1; padding-top: 16px; margin-bottom: 16px;">
+          <button type="button" id="btn-toggle-change-password"
+            style="background: #f1f5f9; border: 1.5px solid #cbd5e1; padding: 10px 14px; border-radius: 10px; width: 100%; font-weight: 700; color: #475569; cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
+            🔒 Đổi mật khẩu
+          </button>
+          
+          <div id="change-password-section" style="margin-top: 14px; display: none; flex-direction: column; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px;">
+            <div class="profile-form-group" style="margin-bottom: 0;">
+              <label class="profile-form-label" for="profile-curr-pass" style="font-weight: 700; font-size: 0.82rem; color: #475569;">Mật khẩu hiện tại</label>
+              <input type="password" id="profile-curr-pass" class="profile-form-input" style="background: white;" />
+            </div>
+            <div class="profile-form-group" style="margin-bottom: 0;">
+              <label class="profile-form-label" for="profile-new-pass" style="font-weight: 700; font-size: 0.82rem; color: #475569;">Mật khẩu mới (tối thiểu 8 ký tự)</label>
+              <input type="password" id="profile-new-pass" class="profile-form-input" style="background: white;" />
+            </div>
+            <div class="profile-form-group" style="margin-bottom: 0;">
+              <label class="profile-form-label" for="profile-confirm-pass" style="font-weight: 700; font-size: 0.82rem; color: #475569;">Xác nhận mật khẩu mới</label>
+              <input type="password" id="profile-confirm-pass" class="profile-form-input" style="background: white;" />
+            </div>
+            <button type="button" id="btn-submit-change-password"
+              style="background: #16a34a; border: none; padding: 12px; border-radius: 10px; font-weight: 800; color: white; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); transition: all 0.2s;">
+              Xác Nhận Đổi Mật Khẩu
+            </button>
+          </div>
+        </div>
+
         <!-- Actions -->
         <div class="profile-modal-actions">
           <button type="button" class="btn-profile-cancel" id="profile-cancel-btn">Hủy</button>

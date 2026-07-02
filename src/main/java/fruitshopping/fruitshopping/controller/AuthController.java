@@ -107,4 +107,51 @@ public class AuthController {
         boolean exists = userRepository.existsByEmail(email.trim().toLowerCase());
         return ResponseEntity.ok(ApiResponse.ok(Map.of("exists", exists)));
     }
+
+    /** POST /api/auth/forgot-password */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Vui lòng nhập Email!"));
+        }
+
+        try {
+            authService.forgotPassword(request);
+            return ResponseEntity.ok(ApiResponse.ok(
+                Map.of("message", "Mã xác thực khôi phục mật khẩu đã được gửi về email của bạn!")
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Lỗi: " + e.getMessage()));
+        }
+    }
+
+    /** POST /api/auth/reset-password */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Thiếu thông tin Email!"));
+        }
+        if (request.getOtpCode() == null || request.getOtpCode().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Vui lòng nhập mã OTP!"));
+        }
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Mật khẩu mới tối thiểu 8 ký tự!"));
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Mật khẩu xác nhận không khớp!"));
+        }
+
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok(ApiResponse.ok(
+                Map.of("message", "Mật khẩu của bạn đã được thay đổi thành công!")
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Lỗi: " + e.getMessage()));
+        }
+    }
 }

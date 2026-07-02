@@ -16,5 +16,7 @@ public interface UserService {
     UserAdminResponse toggleUserStatus(Integer userId);
 
     UserAdminResponse updateUserRole(Integer userId, Integer roleId);
+
+    void changePassword(String email, fruitshopping.fruitshopping.dto.request.ChangePasswordRequest request);
 }
 

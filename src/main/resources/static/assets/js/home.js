@@ -1612,6 +1612,16 @@ async function openProfileModal() {
       opt.classList.toggle('selected', opt.dataset.emoji === avatar);
     });
 
+    // Reset change password inputs & section
+    const currPassInput = document.getElementById('profile-curr-pass');
+    const newPassInput = document.getElementById('profile-new-pass');
+    const confPassInput = document.getElementById('profile-confirm-pass');
+    const changePassSec = document.getElementById('change-password-section');
+    if (currPassInput) currPassInput.value = '';
+    if (newPassInput) newPassInput.value = '';
+    if (confPassInput) confPassInput.value = '';
+    if (changePassSec) changePassSec.style.display = 'none';
+
     // Show modal
     document.getElementById('profile-modal').classList.add('active');
   } catch (err) {
@@ -1649,6 +1659,76 @@ function initProfileModalEvents() {
       document.getElementById('profile-avatar-input').value = emoji;
       document.getElementById('profile-avatar-display').textContent = emoji;
     });
+  });
+
+  // Toggle Change Password Form
+  const btnTogglePass = document.getElementById('btn-toggle-change-password');
+  const changePassSection = document.getElementById('change-password-section');
+  btnTogglePass?.addEventListener('click', () => {
+    const isHidden = changePassSection.style.display === 'none';
+    changePassSection.style.display = isHidden ? 'flex' : 'none';
+  });
+
+  // Submit Change Password
+  const btnSubmitPass = document.getElementById('btn-submit-change-password');
+  btnSubmitPass?.addEventListener('click', async () => {
+    const alertEl = document.getElementById('profile-alert');
+    if (alertEl) {
+      alertEl.className = 'profile-alert hidden';
+      alertEl.textContent = '';
+    }
+
+    const currentPassword = document.getElementById('profile-curr-pass').value;
+    const newPassword = document.getElementById('profile-new-pass').value;
+    const confirmPassword = document.getElementById('profile-confirm-pass').value;
+    const token = localStorage.getItem('token');
+
+    if (!currentPassword) {
+      showToast('❌ Vui lòng nhập mật khẩu hiện tại!', 'error');
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      showToast('❌ Mật khẩu mới tối thiểu phải có 8 ký tự!', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('❌ Mật khẩu xác nhận không khớp!', 'error');
+      return;
+    }
+
+    btnSubmitPass.disabled = true;
+    btnSubmitPass.textContent = 'Đang xử lý...';
+
+    try {
+      const response = await fetch('/api/users/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+      });
+
+      const resJson = await response.json();
+      if (!response.ok) {
+        throw new Error(resJson.message || 'Thay đổi mật khẩu thất bại.');
+      }
+
+      showToast('✅ Đổi mật khẩu thành công!', 'success');
+      
+      // Reset inputs & hide
+      document.getElementById('profile-curr-pass').value = '';
+      document.getElementById('profile-new-pass').value = '';
+      document.getElementById('profile-confirm-pass').value = '';
+      changePassSection.style.display = 'none';
+
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Lỗi: ' + err.message, 'error');
+    } finally {
+      btnSubmitPass.disabled = false;
+      btnSubmitPass.textContent = 'Xác Nhận Đổi Mật Khẩu';
+    }
   });
 
   // Form submit

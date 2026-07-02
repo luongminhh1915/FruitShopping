@@ -15,4 +15,10 @@ public interface AuthService {
 
     // Gửi lại OTP
     void resendOtp(String email, String otpType);
+
+    // Yêu cầu lấy lại mật khẩu (Gửi OTP)
+    void forgotPassword(ForgotPasswordRequest request);
+
+    // Xác nhận OTP và đặt lại mật khẩu mới
+    void resetPassword(ResetPasswordRequest request);
 }

@@ -49,13 +49,19 @@
     <div class="auth-form-card">
       <a href="/" class="back-home-link">← Về trang chủ</a>
 
-      <div class="auth-form-header">
+      <div class="auth-form-header" id="auth-header-login">
         <h2 class="auth-form-title">Đăng <span>Nhập</span></h2>
         <p class="auth-form-subtitle">Điền thông tin bên dưới để đăng nhập vào hệ thống</p>
       </div>
 
+      <div class="auth-form-header hidden" id="auth-header-forgot">
+        <h2 class="auth-form-title">Quên <span>Mật Khẩu</span></h2>
+        <p class="auth-form-subtitle">Nhập email của bạn để nhận mã OTP khôi phục mật khẩu</p>
+      </div>
+
       <div class="auth-alert hidden" id="login-alert" role="alert"></div>
 
+      <!-- ====== LOGIN FORM ====== -->
       <form id="login-form" novalidate autocomplete="on">
         <!-- Email -->
         <div class="form-group">
@@ -71,7 +77,7 @@
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <label class="form-label" for="login-password">🔒 Mật Khẩu</label>
-            <a href="#" class="auth-switch" style="margin-top:0; font-size:12px; font-weight:600; color:var(--color-primary);">Quên mật khẩu?</a>
+            <a href="#" id="forgot-password-link" class="auth-switch" style="margin-top:0; font-size:12px; font-weight:600; color:var(--color-primary);">Quên mật khẩu?</a>
           </div>
           <div class="input-wrapper">
             <input type="password" id="login-password" name="password" class="form-input has-toggle"
@@ -95,9 +101,71 @@
         </button>
       </form>
 
-      <div class="auth-divider">hoặc</div>
+      <!-- ====== FORGOT PASSWORD FORM ====== -->
+      <form id="forgot-password-form" class="hidden" novalidate autocomplete="off">
+        <!-- Step 1: Nhập email gửi OTP -->
+        <div id="forgot-step-1">
+          <div class="form-group">
+            <label class="form-label" for="forgot-email">📧 Nhập email tài khoản</label>
+            <div class="input-wrapper">
+              <input type="email" id="forgot-email" name="email" class="form-input"
+                placeholder="nhap@email.vn" required/>
+            </div>
+            <p class="field-error" id="forgot-email-error"></p>
+          </div>
+          <button type="button" class="auth-btn" id="forgot-send-otp-btn" style="margin-top:var(--space-4);">
+            Gửi Mã Xác Thực OTP
+          </button>
+        </div>
 
-      <div class="auth-switch">
+        <!-- Step 2: Nhập OTP và mật khẩu mới -->
+        <div id="forgot-step-2" class="hidden">
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:10px; margin-bottom:16px; font-size:13px; color:#166534; font-weight:600;">
+            Mã OTP đã được gửi về email của bạn. Vui lòng kiểm tra hộp thư!
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="forgot-otp">🔑 Nhập mã OTP</label>
+            <div class="input-wrapper">
+              <input type="text" id="forgot-otp" name="otp" class="form-input"
+                placeholder="Nhập 6 chữ số OTP" required maxlength="6"/>
+            </div>
+            <p class="field-error" id="forgot-otp-error"></p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="forgot-new-password">🔒 Mật khẩu mới</label>
+            <div class="input-wrapper">
+              <input type="password" id="forgot-new-password" name="newPassword" class="form-input has-toggle"
+                placeholder="Tối thiểu 8 ký tự" required/>
+              <button type="button" class="input-toggle" id="toggle-forgot-password-1">👁️</button>
+            </div>
+            <p class="field-error" id="forgot-new-password-error"></p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="forgot-confirm-password">🔒 Xác nhận mật khẩu mới</label>
+            <div class="input-wrapper">
+              <input type="password" id="forgot-confirm-password" name="confirmPassword" class="form-input has-toggle"
+                placeholder="Nhập lại mật khẩu mới" required/>
+              <button type="button" class="input-toggle" id="toggle-forgot-password-2">👁️</button>
+            </div>
+            <p class="field-error" id="forgot-confirm-password-error"></p>
+          </div>
+
+          <button type="submit" class="auth-btn" id="forgot-submit-btn" style="margin-top:var(--space-4);">
+            Xác Nhận Đặt Lại Mật Khẩu
+          </button>
+        </div>
+
+        <div style="margin-top:var(--space-6); text-align:center;">
+          <a href="#" id="back-to-login-link" style="font-size:14px; font-weight:700; color:var(--color-primary);">← Quay lại Đăng Nhập</a>
+        </div>
+      </form>
+
+      <div class="auth-divider" id="auth-divider-switch">hoặc</div>
+
+      <div class="auth-switch" id="auth-switch-register">
         Chưa có tài khoản? <a href="../register/index.html">Đăng ký ngay</a>
       </div>
     </div>
