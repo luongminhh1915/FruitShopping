@@ -58,10 +58,8 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toList());
 
         // Lấy phương thức thanh toán từ Payment
-        String payMethod = paymentRepository.findAll().stream()
-                .filter(p -> p.getOrder() != null && p.getOrder().getOrderId().equals(order.getOrderId()))
+        String payMethod = paymentRepository.findFirstByOrder(order)
                 .map(Payment::getPaymentMethod)
-                .findFirst()
                 .orElse("N/A");
 
         return OrderResponse.builder()
