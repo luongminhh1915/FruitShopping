@@ -600,14 +600,11 @@
       <!-- Filter Tabs -->
       <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">
         <button onclick="filterOrderHistory('ALL')" id="oh-tab-ALL"
-          style="padding: 6px 14px; border-radius: 20px; border: none; background: #16a34a; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Tất
-          cả</button>
-        <button onclick="filterOrderHistory('DELIVERED')" id="oh-tab-DELIVERED"
-          style="padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Đã
-          giao hàng</button>
+          style="padding: 6px 14px; border-radius: 20px; border: none; background: #16a34a; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Tất cả</button>
         <button onclick="filterOrderHistory('PROCESSING')" id="oh-tab-PROCESSING"
-          style="padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Đang
-          xử lý</button>
+          style="padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Đang xử lý</button>
+        <button onclick="filterOrderHistory('DELIVERED')" id="oh-tab-DELIVERED"
+          style="padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">Đã thanh toán</button>
       </div>
 
       <div id="order-history-body" style="flex: 1; overflow-y: auto; padding-right: 4px;">
