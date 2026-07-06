@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProductManagement();
   initUserManagement();
   initRevenueManagement();
+  initOrderManagement();
 });
 
 
@@ -1148,3 +1149,173 @@ window.renderRevenueTable = function (activeOrders) {
 };
 
 
+/* ==========================================
+   ORDER MANAGEMENT (ADMIN)
+   ========================================== */
+let _allAdminOrders = [];
+
+function initOrderManagement() {
+  // Load orders khi click vào tab "Quản lý Order"
+  document.querySelectorAll('.menu-item').forEach(btn => {
+    if (btn.getAttribute('data-tab') === 'orders') {
+      btn.addEventListener('click', () => window.loadAdminOrders());
+    }
+  });
+
+  // Search filter
+  document.getElementById('ord-search-input')?.addEventListener('input', () => renderOrderTable(_allAdminOrders));
+  // Status filter
+  document.getElementById('ord-status-filter')?.addEventListener('change', () => renderOrderTable(_allAdminOrders));
+}
+
+window.loadAdminOrders = async function () {
+  const tbody = document.getElementById('order-admin-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Đang tải...</td></tr>';
+
+  try {
+    const token = Auth.getToken();
+    const res = await fetch('/api/orders/all', {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Lỗi tải đơn hàng');
+
+    _allAdminOrders = json.data || [];
+    renderOrderTable(_allAdminOrders);
+    updateOrderStats(_allAdminOrders);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
+  }
+};
+
+function updateOrderStats(orders) {
+  const prep = orders.filter(o => o.status === 1).length;
+  const del = orders.filter(o => o.status === 2).length;
+  const done = orders.filter(o => o.status === 3).length;
+  const prepEl = document.getElementById('ord-stat-preparing');
+  const delEl = document.getElementById('ord-stat-delivering');
+  const doneEl = document.getElementById('ord-stat-done');
+  if (prepEl) prepEl.textContent = prep;
+  if (delEl) delEl.textContent = del;
+  if (doneEl) doneEl.textContent = done;
+}
+
+function renderOrderTable(orders) {
+  const tbody = document.getElementById('order-admin-table-body');
+  if (!tbody) return;
+
+  const keyword = (document.getElementById('ord-search-input')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('ord-status-filter')?.value || '';
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+  const fmtDate = (dt) => {
+    if (!dt) return 'N/A';
+    const d = new Date(dt);
+    return d.toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  };
+
+  const filtered = orders.filter(o => {
+    const matchKw = !keyword ||
+      (o.customerName || '').toLowerCase().includes(keyword) ||
+      (o.customerEmail || '').toLowerCase().includes(keyword) ||
+      (o.address || '').toLowerCase().includes(keyword);
+    const matchStatus = !statusFilter || String(o.status) === statusFilter;
+    return matchKw && matchStatus;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(o => {
+    const statusInfo = getOrderStatusInfo(o.status);
+    const actionBtns = getOrderActionButtons(o);
+    const isVnPay = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
+    const payBadge = isVnPay
+      ? 'background:#e0f2fe; color:#0369a1;'
+      : 'background:#fef3c7; color:#d97706;';
+
+    return `
+      <tr>
+        <td><strong style="color:#16a34a;">#${o.orderId}</strong></td>
+        <td>
+          <div style="font-weight:700; color:#1e293b; font-size:0.9rem;">${o.customerName || 'N/A'}</div>
+          <div style="font-size:0.78rem; color:#64748b;">${o.customerEmail || ''}</div>
+        </td>
+        <td style="font-size:0.83rem; color:#475569; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
+        <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payBadge}">${o.payMethod || 'N/A'}</span></td>
+        <td style="font-weight:800; color:#1e293b;">${fmt(o.totalPrice)}</td>
+        <td style="font-size:0.8rem; color:#64748b;">${fmtDate(o.orderTime)}</td>
+        <td style="text-align:center;">
+          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${statusInfo.style}">${statusInfo.label}</span>
+        </td>
+        <td style="text-align:center;">${actionBtns}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function getOrderStatusInfo(status) {
+  switch (status) {
+    case 1: return { label: '📦 Đang chuẩn bị', style: 'background:#fef3c7; color:#b45309;' };
+    case 2: return { label: '🚚 Đang giao hàng', style: 'background:#dbeafe; color:#1d4ed8;' };
+    case 3: return { label: '✅ Đã thanh toán', style: 'background:#dcfce7; color:#15803d;' };
+    default: return { label: '❓ Không xác định', style: 'background:#f1f5f9; color:#64748b;' };
+  }
+}
+
+function getOrderActionButtons(o) {
+  if (o.status === 1) {
+    return `<button onclick="window.updateOrderStatus(${o.orderId}, 2)" style="padding:6px 14px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">🚚 Giao hàng</button>`;
+  }
+  if (o.status === 2) {
+    return `<button onclick="window.updateOrderStatus(${o.orderId}, 3)" style="padding:6px 14px; background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">💰 Đã thanh toán</button>`;
+  }
+  return '<span style="color:#94a3b8; font-size:0.82rem;">—</span>';
+}
+
+window.updateOrderStatus = async function (orderId, newStatus) {
+  const labels = { 2: 'Giao hàng', 3: 'Đã thanh toán' };
+  if (!confirm(`Xác nhận chuyển đơn hàng #${orderId} sang trạng thái "${labels[newStatus]}"?`)) return;
+
+  try {
+    const token = Auth.getToken();
+    const res = await fetch(`/api/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Lỗi cập nhật');
+
+    // Cập nhật local data
+    const order = _allAdminOrders.find(o => o.orderId === orderId);
+    if (order) {
+      order.status = newStatus;
+      order.statusLabel = json.data?.statusLabel || '';
+    }
+    renderOrderTable(_allAdminOrders);
+    updateOrderStats(_allAdminOrders);
+
+    showAdminToast(`✅ Đơn hàng #${orderId} đã được cập nhật thành công!`, 'success');
+  } catch (err) {
+    showAdminToast(`❌ ${err.message}`, 'error');
+  }
+};
+
+function showAdminToast(message, type = 'success') {
+  const existing = document.getElementById('admin-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'admin-toast';
+  const bg = type === 'success' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#ef4444,#dc2626)';
+  toast.style.cssText = `position:fixed; bottom:30px; right:30px; background:${bg}; color:#fff; padding:14px 22px; border-radius:14px; font-size:0.92rem; font-weight:700; z-index:99999; box-shadow:0 8px 24px rgba(0,0,0,0.2); animation:slideInRight 0.3s ease;`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}

@@ -415,7 +415,43 @@ window.selectPaymentOption = function (type) {
 
 let _pendingVnPayOrder = null;
 
-window.confirmOrderWithPayment = function () {
+async function saveOrderToDb(orderObj) {
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        orderId: orderObj.orderId,
+        payMethod: orderObj.payMethod,
+        totalPrice: orderObj.numericTotal,
+        numericTotal: orderObj.numericTotal,
+        address: orderObj.address,
+        items: orderObj.items.map(i => ({
+          productId: i.productId,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity
+        }))
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      console.error('Failed to save order to database:', json.message);
+      showToast('⚠️ Không thể lưu đơn hàng vào database: ' + (json.message || 'Lỗi không xác định'), 'error');
+    } else {
+      console.log('Order saved to database successfully:', json.data);
+    }
+  } catch (err) {
+    console.error('Network error saving order to database:', err);
+    showToast('⚠️ Lỗi kết nối mạng khi lưu đơn hàng!', 'error');
+  }
+}
+
+window.confirmOrderWithPayment = async function () {
   let user = (window.Auth && window.Auth.getUser()) || JSON.parse(localStorage.getItem('user') || '{}');
   let userAddress = user.address || 'Địa chỉ mặc định';
   const cartItems = getCartItems();
@@ -436,7 +472,10 @@ window.confirmOrderWithPayment = function () {
   if (_selectedPayMethod === 'VNPAY') {
     openVnPayQrModal(orderObj);
   } else {
-    // Record COD order history immediately
+    // Record COD order history to database
+    await saveOrderToDb(orderObj);
+
+    // Record COD order history in localStorage as backup
     try {
       const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
       const historyList = historyRaw ? JSON.parse(historyRaw) : [];
@@ -482,8 +521,11 @@ window.closeVnPayQrModal = function () {
   }
 };
 
-window.simulateVnPaySuccess = function () {
+window.simulateVnPaySuccess = async function () {
   if (!_pendingVnPayOrder) return;
+
+  // Record VNPay order history to database
+  await saveOrderToDb(_pendingVnPayOrder);
 
   try {
     const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
@@ -1630,6 +1672,132 @@ async function openProfileModal() {
   }
 }
 window.openProfileModal = openProfileModal;
+
+/* =============================
+   ORDER HISTORY MODAL LOGIC
+   ============================= */
+window.openOrderHistoryModal = async function () {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showToast('❌ Bạn cần đăng nhập để xem lịch sử mua hàng!', 'error');
+    return;
+  }
+
+  // Tạo hoặc lấy modal
+  let modal = document.getElementById('order-history-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'order-history-modal';
+    modal.style.cssText = `
+      position: fixed; inset: 0; z-index: 99998;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; animation: fadeIn 0.2s ease;
+    `;
+    modal.innerHTML = `
+      <div style="background:#fff; border-radius:20px; box-shadow:0 24px 60px rgba(0,0,0,0.22); width:100%; max-width:720px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;">
+        <!-- Header -->
+        <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#f0fdf4,#ecfdf5);">
+          <div>
+            <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:#166534;">📦 Lịch Sử Mua Hàng</h3>
+            <p style="margin:4px 0 0; font-size:0.83rem; color:#64748b;">Theo dõi trạng thái các đơn hàng của bạn</p>
+          </div>
+          <button id="order-history-close" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8; line-height:1;">✕</button>
+        </div>
+        <!-- Body -->
+        <div id="order-history-body" style="flex:1; overflow-y:auto; padding:20px 24px;">
+          <div style="text-align:center; padding:40px; color:#94a3b8;">⏳ Đang tải lịch sử đơn hàng...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close events
+    document.getElementById('order-history-close')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  }
+
+  modal.style.display = 'flex';
+  const body = document.getElementById('order-history-body');
+
+  try {
+    const res = await fetch('/api/orders/my', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Lỗi tải lịch sử');
+
+    const orders = json.data || [];
+
+    if (orders.length === 0) {
+      body.innerHTML = `
+        <div style="text-align:center; padding:50px 20px;">
+          <div style="font-size:3rem; margin-bottom:12px;">🛒</div>
+          <h4 style="color:#475569; margin-bottom:8px;">Chưa có đơn hàng nào</h4>
+          <p style="color:#94a3b8; font-size:0.9rem;">Hãy chọn những sản phẩm yêu thích và đặt hàng ngay!</p>
+        </div>`;
+      return;
+    }
+
+    const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+    const fmtDate = (dt) => {
+      if (!dt) return '';
+      const d = new Date(dt);
+      return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const statusConfig = {
+      1: { label: '📦 Đang chuẩn bị hàng', bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
+      2: { label: '🚚 Đang giao hàng',      bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' },
+      3: { label: '✅ Đã thanh toán',        bg: '#dcfce7', color: '#15803d', border: '#bbf7d0' },
+    };
+
+    body.innerHTML = orders.map(o => {
+      const sc = statusConfig[o.status] || { label: '❓ Không xác định', bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' };
+      const itemsHtml = (o.items || []).map(item => `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f8fafc;">
+          <div style="width:36px; height:36px; border-radius:8px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0;">
+            ${item.productImage ? `<img src="${item.productImage}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;">` : '🍎'}
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:700; font-size:0.88rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.productName}</div>
+            <div style="font-size:0.78rem; color:#64748b;">SL: ${item.quantity} × ${fmt(item.unitPrice)}</div>
+          </div>
+          <div style="font-weight:800; color:#16a34a; font-size:0.88rem;">${fmt(item.subtotal)}</div>
+        </div>
+      `).join('');
+
+      return `
+        <div style="border:1.5px solid ${sc.border}; border-radius:14px; margin-bottom:16px; overflow:hidden; transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+          <!-- Order Header -->
+          <div style="padding:12px 16px; background:${sc.bg}; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>
+              <span style="font-weight:800; color:#1e293b; font-size:0.95rem;">#${o.orderId}</span>
+              <span style="color:#94a3b8; font-size:0.78rem; margin-left:8px;">${fmtDate(o.orderTime)}</span>
+            </div>
+            <span style="font-size:0.8rem; font-weight:700; padding:5px 14px; border-radius:20px; background:#fff; color:${sc.color}; border:1.5px solid ${sc.border};">${sc.label}</span>
+          </div>
+          <!-- Order Details -->
+          <div style="padding:12px 16px;">
+            <div style="font-size:0.82rem; color:#475569; margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap;">
+              <span>📍 ${o.address || 'N/A'}</span>
+              <span>💳 ${o.payMethod || 'N/A'}</span>
+            </div>
+            ${itemsHtml}
+            <div style="text-align:right; padding-top:10px; border-top:2px solid #f1f5f9; margin-top:8px;">
+              <span style="font-size:0.85rem; color:#64748b;">Tổng cộng: </span>
+              <span style="font-size:1.05rem; font-weight:800; color:#16a34a;">${fmt(o.totalPrice)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</div>`;
+  }
+};
+
 
 function initProfileModalEvents() {
   const modal = document.getElementById('profile-modal');

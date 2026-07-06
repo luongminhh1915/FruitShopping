@@ -85,8 +85,7 @@
           <span class="menu-icon">🏠</span>
           <span class="menu-text">Quay lại Trang Chủ</span>
         </a>
-        <button class="btn-logout-admin" id="btn-logout-admin"
-          onclick="if(confirm('Bạn có chắc chắn muốn đăng xuất?')) Auth.logout();">
+        <button class="btn-logout-admin" id="btn-logout-admin">
           <span class="menu-icon">🚪</span>
           <span class="menu-text">Đăng Xuất</span>
         </button>
@@ -184,12 +183,68 @@
 
         <!-- Orders Tab -->
         <div class="tab-pane" id="tab-orders">
-          <div class="blank-state">
-            <div class="blank-icon">📦</div>
-            <h3>Danh Sách Đơn Hàng</h3>
-            <p>Trang này hiện đang để trống theo yêu cầu. Dữ liệu quản lý đơn hàng sẽ được tích hợp tại đây.</p>
+          <!-- Stats Cards -->
+          <div class="admin-stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(234,179,8,0.12); color: #ca8a04;">📦</div>
+              <div class="stat-info">
+                <span class="stat-value" id="ord-stat-preparing">0</span>
+                <span class="stat-label">Đang chuẩn bị hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(59,130,246,0.12); color: #2563eb;">🚚</div>
+              <div class="stat-info">
+                <span class="stat-value" id="ord-stat-delivering">0</span>
+                <span class="stat-label">Đang giao hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(22,163,74,0.12); color: #16a34a;">✅</div>
+              <div class="stat-info">
+                <span class="stat-value" id="ord-stat-done">0</span>
+                <span class="stat-label">Đã thanh toán</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Bar -->
+          <div class="admin-filter-bar">
+            <div class="search-box-admin">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="ord-search-input" placeholder="Tìm theo tên KH, email, địa chỉ..." />
+            </div>
+            <select id="ord-status-filter" class="filter-select-admin">
+              <option value="">-- Tất cả trạng thái --</option>
+              <option value="1">📦 Đang chuẩn bị hàng</option>
+              <option value="2">🚚 Đang giao hàng</option>
+              <option value="3">✅ Đã thanh toán</option>
+            </select>
+            <button class="btn-refresh" id="ord-refresh-btn" onclick="window.loadAdminOrders()" style="padding:8px 16px; background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.87rem; font-weight:600; cursor:pointer; color:#334155; display:flex; align-items:center; gap:6px;">🔄 Làm mới</button>
+          </div>
+
+          <!-- Order Table -->
+          <div class="table-container">
+            <table class="admin-table" id="order-admin-table">
+              <thead>
+                <tr>
+                  <th>Mã ĐH</th>
+                  <th>Khách hàng</th>
+                  <th>Địa chỉ</th>
+                  <th>Phương thức TT</th>
+                  <th>Tổng tiền</th>
+                  <th>Thời gian</th>
+                  <th style="text-align:center;">Trạng thái</th>
+                  <th style="text-align:center;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="order-admin-table-body">
+                <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">Đang tải dữ liệu...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
+
 
         <!-- Revenue Tab -->
         <div class="tab-pane" id="tab-revenue">

@@ -2,6 +2,7 @@ package fruitshopping.fruitshopping.service.impl;
 
 import fruitshopping.fruitshopping.dto.request.CreateOrderRequest;
 import fruitshopping.fruitshopping.dto.response.ApiResponse;
+import fruitshopping.fruitshopping.dto.response.OrderResponse;
 import fruitshopping.fruitshopping.entity.*;
 import fruitshopping.fruitshopping.repository.*;
 import fruitshopping.fruitshopping.service.OrderService;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,29 +28,85 @@ public class OrderServiceImpl implements OrderService {
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
 
+    /* =============================================
+     * HELPER – chuyển đổi status code → label
+     * ============================================= */
+    private static String statusLabel(int status) {
+        return switch (status) {
+            case 1 -> "Đang chuẩn bị hàng";
+            case 2 -> "Đang giao hàng";
+            case 3 -> "Đã thanh toán";
+            default -> "Không xác định";
+        };
+    }
+
+    /* =============================================
+     * HELPER – convert Order entity → OrderResponse
+     * ============================================= */
+    private OrderResponse toResponse(Order order) {
+        List<OrderItem> items = orderItemRepository.findAllByOrder(order);
+
+        List<OrderResponse.OrderItemResponse> itemResponses = items.stream()
+                .map(item -> OrderResponse.OrderItemResponse.builder()
+                        .productId(item.getProduct() != null ? item.getProduct().getProductId() : null)
+                        .productName(item.getProduct() != null ? item.getProduct().getName() : "Sản phẩm")
+                        .productImage(item.getProduct() != null ? item.getProduct().getImgUrl() : null)
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .subtotal(item.getSubtotal())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Lấy phương thức thanh toán từ Payment
+        String payMethod = paymentRepository.findAll().stream()
+                .filter(p -> p.getOrder() != null && p.getOrder().getOrderId().equals(order.getOrderId()))
+                .map(Payment::getPaymentMethod)
+                .findFirst()
+                .orElse("N/A");
+
+        return OrderResponse.builder()
+                .orderId(order.getOrderId())
+                .customerName(order.getUser() != null ? order.getUser().getFullName() : "Khách hàng")
+                .customerEmail(order.getUser() != null ? order.getUser().getEmail() : "")
+                .address(order.getNote())
+                .totalPrice(order.getTotal())
+                .payMethod(payMethod)
+                .status(order.getStatus())
+                .statusLabel(statusLabel(order.getStatus()))
+                .orderTime(order.getOrderTime())
+                .items(itemResponses)
+                .build();
+    }
+
+    /* =============================================
+     * CREATE ORDER – status = 1 (Đang chuẩn bị)
+     * ============================================= */
     @Override
     @Transactional
     public ApiResponse<String> createOrder(CreateOrderRequest request) {
+        // Xác định User
         User user = null;
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
                 user = userRepository.findByEmail(auth.getName()).orElse(null);
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception ignored) {}
 
         if (user == null) {
             List<User> users = userRepository.findAll();
             if (!users.isEmpty()) {
                 user = users.get(0);
             } else {
-                user = userRepository
-                        .save(User.builder().email("customer@fruitfresh.vn").fullName("Khách hàng").build());
+                user = userRepository.save(User.builder()
+                        .email("customer@fruitfresh.vn")
+                        .fullName("Khách hàng")
+                        .build());
             }
         }
 
-        Shop shop = null;
+        // Xác định Shop
+        Shop shop;
         List<Shop> shops = shopRepository.findAll();
         if (!shops.isEmpty()) {
             shop = shops.get(0);
@@ -57,15 +115,14 @@ public class OrderServiceImpl implements OrderService {
         }
 
         BigDecimal totalAmt = request.getNumericTotal();
-        if (totalAmt == null)
-            totalAmt = request.getTotalPrice();
-        if (totalAmt == null)
-            totalAmt = BigDecimal.valueOf(100000);
+        if (totalAmt == null) totalAmt = request.getTotalPrice();
+        if (totalAmt == null) totalAmt = BigDecimal.valueOf(100000);
 
+        // Tạo Order với status = 1 (Đang chuẩn bị hàng)
         Order order = Order.builder()
                 .user(user)
                 .shop(shop)
-                .status(1) // Completed / Delivered
+                .status(1)  // Đang chuẩn bị hàng
                 .total(totalAmt)
                 .note(request.getAddress() != null ? request.getAddress() : "Địa chỉ giao hàng")
                 .orderTime(LocalDateTime.now())
@@ -73,16 +130,20 @@ public class OrderServiceImpl implements OrderService {
 
         order = orderRepository.save(order);
 
-        String payMethod = request.getPayMethod() != null ? request.getPayMethod() : "Thanh toán khi nhận hàng (COD)";
+        // Tạo Payment – paymentStatus = 0 (chưa thanh toán)
+        String payMethod = request.getPayMethod() != null
+                ? request.getPayMethod()
+                : "Thanh toán khi nhận hàng (COD)";
         Payment payment = Payment.builder()
                 .order(order)
                 .paymentMethod(payMethod)
                 .amount(totalAmt)
-                .paymentStatus(1) // Paid
+                .paymentStatus(0)  // Chưa thanh toán
                 .paymentDate(LocalDateTime.now())
                 .build();
         paymentRepository.save(payment);
 
+        // Tạo OrderItems
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             List<Product> products = productRepository.findAll();
             Product defaultProduct = !products.isEmpty() ? products.get(0) : null;
@@ -109,7 +170,54 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        return ApiResponse
-                .ok("Đơn hàng và Payment đã được lưu thành công vào Database! Order ID: " + order.getOrderId());
+        return ApiResponse.ok("Đơn hàng đã được tạo thành công! Trạng thái: Đang chuẩn bị hàng. Order ID: " + order.getOrderId());
+    }
+
+    /* =============================================
+     * GET MY ORDERS – cho Customer
+     * ============================================= */
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<OrderResponse>> getMyOrders(String email) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return ApiResponse.error("Không tìm thấy người dùng.");
+        }
+        List<OrderResponse> responses = orderRepository.findAllByUserOrderByOrderTimeDesc(user)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ApiResponse.ok(responses);
+    }
+
+    /* =============================================
+     * GET ALL ORDERS – cho Admin
+     * ============================================= */
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<OrderResponse>> getAllOrders() {
+        List<OrderResponse> responses = orderRepository.findAllByOrderByOrderTimeDesc()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ApiResponse.ok(responses);
+    }
+
+    /* =============================================
+     * UPDATE ORDER STATUS – cho Admin
+     * ============================================= */
+    @Override
+    @Transactional
+    public ApiResponse<OrderResponse> updateOrderStatus(Integer orderId, Integer newStatus) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            return ApiResponse.error("Không tìm thấy đơn hàng #" + orderId);
+        }
+        if (newStatus < 1 || newStatus > 3) {
+            return ApiResponse.error("Trạng thái không hợp lệ. Chỉ chấp nhận 1, 2, 3.");
+        }
+        order.setStatus(newStatus);
+        orderRepository.save(order);
+        return ApiResponse.ok(toResponse(order));
     }
 }

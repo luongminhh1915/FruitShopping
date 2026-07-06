@@ -37,8 +37,10 @@ public class SecurityConfig {
                                                 // Allow authentication APIs
                                                 .requestMatchers("/api/auth/**").permitAll()
                                                 // Allow viewing products, categories, reviews and creating orders
-                                                .requestMatchers("/api/products/**", "/api/categories/**", "/api/orders/**").permitAll()
-                                                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/products/**", "/api/orders/**").permitAll()
+                                                .requestMatchers("/api/products/**", "/api/categories/**").permitAll()
+                                                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/orders/create").permitAll()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/orders/all").permitAll()
+                                                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/**").permitAll()
                                                 // Any other requests must be authenticated
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
