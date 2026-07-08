@@ -22,9 +22,9 @@ public class OrderController {
 
     /** POST /api/orders/create – Tạo đơn hàng mới (trạng thái = 1: Đang chuẩn bị hàng) */
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<String>> createOrder(@RequestBody CreateOrderRequest request) {
+    public ResponseEntity<ApiResponse<OrderResponse>> createOrder(@RequestBody CreateOrderRequest request) {
         try {
-            ApiResponse<String> response = orderService.createOrder(request);
+            ApiResponse<OrderResponse> response = orderService.createOrder(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Lỗi khi lưu đơn hàng: " + e.getMessage()));

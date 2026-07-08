@@ -38,6 +38,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/auth/**").permitAll()
                                                 // Allow viewing products, categories, reviews and creating orders
                                                 .requestMatchers("/api/products/**", "/api/categories/**").permitAll()
+                                                .requestMatchers("/api/payment/vnpay/**").permitAll()
                                                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/orders/create").permitAll()
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/orders/all").permitAll()
                                                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/**").permitAll()

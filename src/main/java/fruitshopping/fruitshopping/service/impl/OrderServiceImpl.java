@@ -81,7 +81,7 @@ public class OrderServiceImpl implements OrderService {
      * ============================================= */
     @Override
     @Transactional
-    public ApiResponse<String> createOrder(CreateOrderRequest request) {
+    public ApiResponse<OrderResponse> createOrder(CreateOrderRequest request) {
         // Xác định User
         User user = null;
         try {
@@ -168,7 +168,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        return ApiResponse.ok("Đơn hàng đã được tạo thành công! Trạng thái: Đang chuẩn bị hàng. Order ID: " + order.getOrderId());
+        return ApiResponse.ok(toResponse(order));
     }
 
     /* =============================================

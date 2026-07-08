@@ -448,7 +448,7 @@ async function saveOrderToDb(orderObj) {
       return false;
     } else {
       console.log('Order saved to database successfully:', json.data);
-      return true;
+      return json.data;
     }
   } catch (err) {
     console.error('Network error saving order to database:', err);
@@ -476,7 +476,48 @@ window.confirmOrderWithPayment = async function () {
   };
 
   if (_selectedPayMethod === 'VNPAY') {
-    openVnPayQrModal(orderObj);
+    const savedOrder = await saveOrderToDb(orderObj);
+    if (!savedOrder) return;
+
+    const token = localStorage.getItem('token');
+    try {
+      showToast('🔄 Đang kết nối tới cổng thanh toán VNPay...', 'success');
+      const res = await fetch('/api/payment/vnpay/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderId: savedOrder.orderId,
+          amount: savedOrder.totalPrice
+        })
+      });
+      const json = await res.json();
+      if (json.payUrl) {
+        // Lưu lịch sử local dự phòng
+        try {
+          const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
+          const historyList = historyRaw ? JSON.parse(historyRaw) : [];
+          orderObj.orderId = savedOrder.orderId;
+          historyList.unshift(orderObj);
+          localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
+        } catch (e) { console.error(e); }
+
+        saveCartItems([]);
+        updateCartBadge();
+        closePaymentMethodModal();
+        closeCartModal();
+
+        // Chuyển hướng người dùng sang trang thanh toán VNPay
+        window.location.href = json.payUrl;
+      } else {
+        showToast('❌ Lỗi tạo URL thanh toán: ' + (json.message || 'Không xác định'), 'error');
+      }
+    } catch (err) {
+      console.error('Error creating VNPay URL:', err);
+      showToast('❌ Không thể kết nối với cổng thanh toán VNPay!', 'error');
+    }
   } else {
     // Record COD order history to database
     await saveOrderToDb(orderObj);
@@ -1899,4 +1940,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Cart badge & modal events
   initCartModalEvents();
   updateCartBadge();
+
+  // Check VNPay payment status in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const payment = urlParams.get('payment');
+  const orderId = urlParams.get('orderId');
+
+  if (payment === 'success') {
+    saveCartItems([]);
+    updateCartBadge();
+    showToast(`🎉 Thanh toán đơn hàng #${orderId} thành công qua VNPay!`, 'success');
+    alert(`💳 THANH TOÁN VNPAY THÀNH CÔNG!\n\n📌 Mã đơn hàng: #${orderId}\n\n🚚 Đơn hàng của bạn đã được xác nhận thanh toán và đang chuẩn bị giao hàng!`);
+    window.history.replaceState({}, document.title, "/");
+  } else if (payment === 'failed') {
+    showToast('❌ Thanh toán qua VNPay thất bại hoặc đã bị hủy!', 'error');
+    window.history.replaceState({}, document.title, "/");
+  }
 });

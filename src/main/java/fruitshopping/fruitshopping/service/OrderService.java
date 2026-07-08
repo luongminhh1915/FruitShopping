@@ -9,7 +9,7 @@ import java.util.List;
 public interface OrderService {
 
     /** Tạo đơn hàng mới – trả về status=1 (Đang chuẩn bị hàng) */
-    ApiResponse<String> createOrder(CreateOrderRequest request);
+    ApiResponse<OrderResponse> createOrder(CreateOrderRequest request);
 
     /** Customer: lấy danh sách đơn hàng của chính mình */
     ApiResponse<List<OrderResponse>> getMyOrders(String email);
