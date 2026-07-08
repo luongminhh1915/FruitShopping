@@ -975,6 +975,9 @@ window.filterRevenuePeriod = function (period) {
 
 async function renderRevenueDashboard() {
   const token = localStorage.getItem('token');
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+
+  // --- Tải số liệu thống kê từ API (tổng doanh thu, VNPay, COD) ---
   if (token) {
     try {
       const res = await fetch(`/api/admin/revenue/stats?period=${_revCurrentPeriod}`, {
@@ -984,90 +987,87 @@ async function renderRevenueDashboard() {
         const json = await res.json();
         if (json.data) {
           const stats = json.data;
-          const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
-
-          const totalEl = document.getElementById('rev-stat-total');
+          const totalEl  = document.getElementById('rev-stat-total');
           const ordersEl = document.getElementById('rev-stat-orders');
-          const vnpayEl = document.getElementById('rev-stat-vnpay');
-          const codEl = document.getElementById('rev-stat-cod');
-
-          if (totalEl) totalEl.textContent = fmt(stats.totalRevenue);
+          const vnpayEl  = document.getElementById('rev-stat-vnpay');
+          const codEl    = document.getElementById('rev-stat-cod');
+          if (totalEl)  totalEl.textContent  = fmt(stats.totalRevenue);
           if (ordersEl) ordersEl.textContent = stats.totalOrders;
-          if (vnpayEl) vnpayEl.textContent = fmt(stats.vnpayRevenue);
-          if (codEl) codEl.textContent = fmt(stats.codRevenue);
+          if (vnpayEl)  vnpayEl.textContent  = fmt(stats.vnpayRevenue);
+          if (codEl)    codEl.textContent    = fmt(stats.codRevenue);
         }
       }
     } catch (e) {
-      console.log('Fetching database stats via API, fallback to local calculation:', e);
+      console.log('Revenue stats API error, will use local calculation:', e);
     }
   }
 
-  const allOrders = getStoredRevenueOrders();
+  // --- Tải danh sách đơn hàng đã thanh toán (status=3) từ DB ---
+  let paidOrders = [];
+  try {
+    const res = await fetch('/api/orders/all', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        paidOrders = (json.data || []).filter(o => o.status === 3);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load paid orders from DB:', e);
+  }
 
+  // --- Lọc theo kỳ thời gian ---
   const now = new Date();
-  const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-  const monthStr = `/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  const todayStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart   = new Date(now); weekStart.setDate(weekStart.getDate() - 7);
+  const monthStart  = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const filteredOrders = allOrders.filter(order => {
+  const filteredOrders = paidOrders.filter(o => {
     if (_revCurrentPeriod === 'ALL') return true;
-    const dateStr = order.date || '';
-    if (_revCurrentPeriod === 'TODAY') {
-      return dateStr.includes(todayStr) || dateStr.includes('Vừa xong');
-    }
-    if (_revCurrentPeriod === 'MONTH' || _revCurrentPeriod === 'WEEK') {
-      return dateStr.includes(monthStr) || dateStr.includes('Vừa xong');
-    }
+    const t = o.orderTime ? new Date(o.orderTime) : null;
+    if (!t) return _revCurrentPeriod === 'ALL';
+    if (_revCurrentPeriod === 'TODAY') return t >= todayStart;
+    if (_revCurrentPeriod === 'WEEK')  return t >= weekStart;
+    if (_revCurrentPeriod === 'MONTH') return t >= monthStart;
     return true;
   });
 
-  let totalRev = 0;
-  let vnpayRev = 0;
-  let codRev = 0;
-  let deliveredCount = 0;
+  // --- Tính tổng cục bộ (dự phòng khi API stats không trả về) ---
+  let totalRev = 0, vnpayRev = 0, codRev = 0;
   const productSalesMap = {};
 
-  filteredOrders.forEach(order => {
-    let amt = order.numericTotal;
-    if (!amt && order.totalPrice) {
-      amt = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) || 0;
-    }
-    if (!amt) amt = 0;
-
+  filteredOrders.forEach(o => {
+    const amt = parseFloat(o.totalPrice) || 0;
     totalRev += amt;
-    deliveredCount += 1;
-
-    if (order.payMethod && order.payMethod.includes('VNPay')) {
+    if (o.payMethod && o.payMethod.toLowerCase().includes('vnpay')) {
       vnpayRev += amt;
     } else {
       codRev += amt;
     }
-
-    if (order.items && Array.isArray(order.items)) {
-      order.items.forEach(item => {
-        const pName = item.name || 'Sản phẩm';
-        const pQty = item.quantity || 1;
-        const pTotal = (item.price || 0) * pQty;
-        if (!productSalesMap[pName]) {
-          productSalesMap[pName] = { name: pName, qty: 0, total: 0 };
-        }
-        productSalesMap[pName].qty += pQty;
-        productSalesMap[pName].total += pTotal;
-      });
-    }
+    (o.items || []).forEach(item => {
+      const pName  = item.productName || item.name || 'Sản phẩm';
+      const pQty   = item.quantity || 1;
+      const pPrice = parseFloat(item.unitPrice) || parseFloat(item.price) || 0;
+      const pTotal = pPrice * pQty;
+      if (!productSalesMap[pName]) productSalesMap[pName] = { name: pName, qty: 0, total: 0 };
+      productSalesMap[pName].qty   += pQty;
+      productSalesMap[pName].total += pTotal;
+    });
   });
 
-  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
-
-  const totalEl = document.getElementById('rev-stat-total');
+  // Cập nhật stat cards (chỉ khi API stats chưa set)
+  const totalEl  = document.getElementById('rev-stat-total');
   const ordersEl = document.getElementById('rev-stat-orders');
-  const vnpayEl = document.getElementById('rev-stat-vnpay');
-  const codEl = document.getElementById('rev-stat-cod');
+  const vnpayEl  = document.getElementById('rev-stat-vnpay');
+  const codEl    = document.getElementById('rev-stat-cod');
+  if (totalEl  && (totalEl.textContent  === '0 đ' || !token)) totalEl.textContent  = fmt(totalRev);
+  if (ordersEl && (ordersEl.textContent === '0'   || !token)) ordersEl.textContent = filteredOrders.length;
+  if (vnpayEl  && (vnpayEl.textContent  === '0 đ' || !token)) vnpayEl.textContent  = fmt(vnpayRev);
+  if (codEl    && (codEl.textContent    === '0 đ' || !token)) codEl.textContent    = fmt(codRev);
 
-  if (totalEl && (!token || totalEl.textContent === '0 đ')) totalEl.textContent = fmt(totalRev);
-  if (ordersEl && (!token || ordersEl.textContent === '0')) ordersEl.textContent = deliveredCount;
-  if (vnpayEl && (!token || vnpayEl.textContent === '0 đ')) vnpayEl.textContent = fmt(vnpayRev);
-  if (codEl && (!token || codEl.textContent === '0 đ')) codEl.textContent = fmt(codRev);
-
+  // --- Sản phẩm bán chạy ---
   const topListEl = document.getElementById('rev-top-products-list');
   if (topListEl) {
     const sortedProducts = Object.values(productSalesMap).sort((a, b) => b.total - a.total).slice(0, 4);
@@ -1075,9 +1075,9 @@ async function renderRevenueDashboard() {
       topListEl.innerHTML = '<div style="font-size:0.9rem; color:#64748b;">Chưa có dữ liệu thống kê sản phẩm.</div>';
     } else {
       const maxTotal = sortedProducts[0].total || 1;
+      const medals = ['🥇', '🥈', '🥉', '🏅'];
       topListEl.innerHTML = sortedProducts.map((p, idx) => {
         const pct = Math.min(100, Math.round((p.total / maxTotal) * 100));
-        const medals = ['🥇', '🥈', '🥉', '🏅'];
         return `
           <div>
             <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; color:#334155; margin-bottom:4px;">
@@ -1093,22 +1093,25 @@ async function renderRevenueDashboard() {
     }
   }
 
+  // --- Render bảng nhật ký ---
   renderRevenueTable(filteredOrders);
 }
+
 
 window.renderRevenueTable = function (activeOrders) {
   const body = document.getElementById('revenue-table-body');
   if (!body) return;
 
   const searchKeyword = (document.getElementById('rev-search-input')?.value || '').toLowerCase().trim();
-  const orders = activeOrders || getStoredRevenueOrders();
+  const orders = activeOrders || [];
 
   const filtered = orders.filter(o => {
     if (!searchKeyword) return true;
-    const matchId = (o.orderId || '').toLowerCase().includes(searchKeyword);
-    const matchAddr = (o.address || '').toLowerCase().includes(searchKeyword);
-    const matchPay = (o.payMethod || '').toLowerCase().includes(searchKeyword);
-    return matchId || matchAddr || matchPay;
+    const matchId   = String(o.orderId   || '').toLowerCase().includes(searchKeyword);
+    const matchName = (o.customerName    || '').toLowerCase().includes(searchKeyword);
+    const matchAddr = (o.address         || '').toLowerCase().includes(searchKeyword);
+    const matchPay  = (o.payMethod       || '').toLowerCase().includes(searchKeyword);
+    return matchId || matchName || matchAddr || matchPay;
   });
 
   if (filtered.length === 0) {
@@ -1122,27 +1125,31 @@ window.renderRevenueTable = function (activeOrders) {
     return;
   }
 
-  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+  const fmtDate = (dt) => {
+    if (!dt) return 'N/A';
+    const d = new Date(dt);
+    return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   body.innerHTML = filtered.map(o => {
-    let amt = o.numericTotal;
-    if (!amt && o.totalPrice) {
-      amt = parseInt(o.totalPrice.replace(/[^0-9]/g, '')) || 0;
-    }
-    const formattedAmt = amt ? fmt(amt) : (o.totalPrice || '0 đ');
-    const isVnPay = o.payMethod && o.payMethod.includes('VNPay');
-    const payBadgeClass = isVnPay ? 'background:#e0f2fe; color:#0369a1;' : 'background:#fef3c7; color:#d97706;';
-    const itemsCount = (o.items || []).reduce((sum, i) => sum + (i.quantity || 1), 0) || 1;
+    const amt       = parseFloat(o.totalPrice) || 0;
+    const isVnPay   = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
+    const payStyle  = isVnPay ? 'background:#e0f2fe; color:#0369a1;' : 'background:#fef3c7; color:#d97706;';
+    const itemCount = (o.items || []).reduce((s, i) => s + (i.quantity || 1), 0) || 1;
 
     return `
       <tr>
         <td><strong style="color:#16a34a;">#${o.orderId}</strong></td>
-        <td style="font-size:0.85rem; color:#64748b;">🕒 ${o.date || 'Vừa xong'}</td>
-        <td style="font-size:0.85rem; max-width: 200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
-        <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payBadgeClass}">${o.payMethod}</span></td>
-        <td style="text-align:center; font-weight:700;">${itemsCount} sp</td>
-        <td style="font-weight:800; color:#1e293b;">${formattedAmt}</td>
-        <td style="text-align:center;"><span class="status-badge status-active" style="background:#dcfce7; color:#15803d;">Thành công</span></td>
+        <td style="font-size:0.85rem; color:#64748b;">🕒 ${fmtDate(o.orderTime)}</td>
+        <td style="font-size:0.85rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <div style="font-weight:600; color:#1e293b;">${o.customerName || 'N/A'}</div>
+          <div style="font-size:0.78rem; color:#94a3b8;">📍 ${o.address || 'N/A'}</div>
+        </td>
+        <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payStyle}">${o.payMethod || 'N/A'}</span></td>
+        <td style="text-align:center; font-weight:700;">${itemCount} sp</td>
+        <td style="font-weight:800; color:#1e293b;">${fmt(amt)}</td>
+        <td style="text-align:center;"><span style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:700;">✅ Thành công</span></td>
       </tr>
     `;
   }).join('');
@@ -1171,7 +1178,7 @@ function initOrderManagement() {
 window.loadAdminOrders = async function () {
   const tbody = document.getElementById('order-admin-table-body');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">⏳ Đang tải...</td></tr>';
 
   try {
     const token = Auth.getToken();
@@ -1185,7 +1192,7 @@ window.loadAdminOrders = async function () {
     renderOrderTable(_allAdminOrders);
     updateOrderStats(_allAdminOrders);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
   }
 };
 
@@ -1224,7 +1231,7 @@ function renderOrderTable(orders) {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
     return;
   }
 
@@ -1236,6 +1243,16 @@ function renderOrderTable(orders) {
       ? 'background:#e0f2fe; color:#0369a1;'
       : 'background:#fef3c7; color:#d97706;';
 
+    // Tính tổng số lượng sản phẩm
+    const totalQty = (o.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const itemCount = (o.items || []).length;
+    const qtyLabel = itemCount > 0
+      ? `${totalQty} sp (${itemCount} loại)`
+      : `0`;
+
+    // Escape items JSON for onclick
+    const itemsJson = JSON.stringify(o.items || []).replace(/"/g, '&quot;');
+
     return `
       <tr>
         <td><strong style="color:#16a34a;">#${o.orderId}</strong></td>
@@ -1245,6 +1262,19 @@ function renderOrderTable(orders) {
         </td>
         <td style="font-size:0.83rem; color:#475569; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
         <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payBadge}">${o.payMethod || 'N/A'}</span></td>
+        <td style="text-align:center;">
+          ${itemCount > 0
+            ? `<button onclick="showOrderItems(event, '${itemsJson}')" title="Xem danh sách sản phẩm"
+                style="background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:20px;
+                       padding:5px 12px; font-size:0.8rem; font-weight:700; cursor:pointer;
+                       box-shadow:0 2px 8px rgba(99,102,241,0.3); transition:all 0.2s;
+                       display:inline-flex; align-items:center; gap:5px;"
+                onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+                🛒 ${qtyLabel}
+              </button>`
+            : `<span style="color:#94a3b8; font-size:0.82rem;">0</span>`
+          }
+        </td>
         <td style="font-weight:800; color:#1e293b;">${fmt(o.totalPrice)}</td>
         <td style="font-size:0.8rem; color:#64748b;">${fmtDate(o.orderTime)}</td>
         <td style="text-align:center;">
@@ -1296,7 +1326,6 @@ window.updateOrderStatus = async function (orderId, newStatus) {
     const order = _allAdminOrders.find(o => o.orderId === orderId);
     if (order) {
       order.status = newStatus;
-      order.statusLabel = json.data?.statusLabel || '';
     }
     renderOrderTable(_allAdminOrders);
     updateOrderStats(_allAdminOrders);
@@ -1319,3 +1348,143 @@ function showAdminToast(message, type = 'success') {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
 }
+
+/* ======================================================
+   PRODUCT LIST POPUP – Hiện danh sách sản phẩm khi click
+   ====================================================== */
+window.showOrderItems = function (event, itemsJsonStr) {
+  // Ngăn event bubble lên document (tránh kích hoạt _closePopupOnOutsideClick)
+  event.stopPropagation();
+
+  const existing = document.getElementById('order-items-popup');
+  // Dùng 40 ký tự đầu của JSON làm key nhận dạng nút
+  const currentKey = itemsJsonStr.substring(0, 40);
+
+  if (existing) {
+    const wasThisButton = existing.dataset.source === currentKey;
+    closeOrderItemsPopup(); // Luôn cleanup listener khi đóng popup cũ
+    if (wasThisButton) return; // Toggle: cùng nút → chỉ đóng, không mở lại
+  }
+
+  let items = [];
+  try { items = JSON.parse(itemsJsonStr.replace(/&quot;/g, '"')); } catch (e) {}
+
+  const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+
+  const popup = document.createElement('div');
+  popup.id = 'order-items-popup';
+  popup.dataset.source = currentKey;
+
+  popup.style.cssText = `
+    position: fixed;
+    z-index: 99999;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(99,102,241,0.15);
+    border: 1.5px solid #e0e7ff;
+    padding: 0;
+    min-width: 320px;
+    max-width: 420px;
+    animation: fadeInUp 0.2s ease;
+    overflow: hidden;
+  `;
+
+  // Tính vị trí popup (tránh vượt ra ngoài màn hình)
+  const rect = event.currentTarget.getBoundingClientRect();
+  const popupTop  = Math.min(rect.bottom + 8, window.innerHeight - 360);
+  const popupLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 440));
+  popup.style.top  = popupTop  + 'px';
+  popup.style.left = popupLeft + 'px';
+
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = `
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 800;
+    font-size: 0.9rem;
+  `;
+  header.innerHTML = `
+    <span>🛒 Danh sách sản phẩm (${items.length} loại)</span>
+    <button onclick="closeOrderItemsPopup()"
+      style="background:rgba(255,255,255,0.2); border:none; color:#fff; cursor:pointer;
+             border-radius:50%; width:24px; height:24px; font-size:0.9rem;
+             display:flex; align-items:center; justify-content:center;">✕</button>
+  `;
+  popup.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.style.cssText = `padding: 12px 14px; max-height: 320px; overflow-y: auto;`;
+
+  if (items.length === 0) {
+    body.innerHTML = `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.85rem;">Không có sản phẩm nào</div>`;
+  } else {
+    body.innerHTML = items.map((item, i) => {
+      const img = item.productImage
+        ? `<img src="${item.productImage}" style="width:40px; height:40px; border-radius:10px; object-fit:cover;">`
+        : `<div style="width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,#f0fdf4,#dcfce7); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🍎</div>`;
+      const subtotal  = item.subtotal  || ((item.unitPrice || 0) * (item.quantity || 1));
+      const unitPrice = item.unitPrice || (item.subtotal && item.quantity ? item.subtotal / item.quantity : 0);
+
+      return `
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 0;
+                    ${i < items.length - 1 ? 'border-bottom: 1px solid #f1f5f9;' : ''}">
+          ${img}
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:700; font-size:0.88rem; color:#1e293b;
+                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${item.productName || item.name || 'Sản phẩm'}
+            </div>
+            <div style="font-size:0.77rem; color:#64748b; margin-top:2px;">
+              SL: <strong>${item.quantity}</strong> × ${fmt(unitPrice)}
+            </div>
+          </div>
+          <div style="font-weight:800; color:#16a34a; font-size:0.88rem; white-space:nowrap;">
+            ${fmt(subtotal)}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Footer tổng
+    const grandTotal = items.reduce((s, it) => s + (it.subtotal || ((it.unitPrice || 0) * (it.quantity || 1))), 0);
+    const totalQty   = items.reduce((s, it) => s + (it.quantity || 0), 0);
+    body.innerHTML += `
+      <div style="border-top:2px solid #f1f5f9; margin-top:8px; padding-top:10px;
+                  display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.82rem; color:#64748b;">
+          Tổng: <strong>${totalQty} sản phẩm</strong>
+        </span>
+        <span style="font-weight:800; color:#6366f1; font-size:0.95rem;">${fmt(grandTotal)}</span>
+      </div>
+    `;
+  }
+
+  popup.appendChild(body);
+  document.body.appendChild(popup);
+
+  // Đăng ký đóng khi click ngoài – requestAnimationFrame đảm bảo
+  // listener không catch ngay click hiện tại
+  requestAnimationFrame(() => {
+    document.addEventListener('click', _closePopupOnOutsideClick);
+  });
+};
+
+function _closePopupOnOutsideClick(e) {
+  const popup = document.getElementById('order-items-popup');
+  if (popup && !popup.contains(e.target)) {
+    popup.remove();
+    document.removeEventListener('click', _closePopupOnOutsideClick);
+  }
+}
+
+window.closeOrderItemsPopup = function () {
+  const popup = document.getElementById('order-items-popup');
+  if (popup) popup.remove();
+  document.removeEventListener('click', _closePopupOnOutsideClick);
+};
