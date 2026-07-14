@@ -469,7 +469,7 @@ window.confirmOrderWithPayment = async function () {
     orderId: 'DH' + Math.floor(100000 + Math.random() * 900000),
     date: new Date().toLocaleString('vi-VN'),
     address: userAddress,
-    payMethod: _selectedPayMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Thanh toán Online (VNPay)',
+    payMethod: _selectedPayMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Thanh toán qua VNPay',
     totalPrice: formattedTotal,
     numericTotal: numericTotal,
     items: [...cartItems]
@@ -481,7 +481,7 @@ window.confirmOrderWithPayment = async function () {
 
     const token = localStorage.getItem('token');
     try {
-      showToast('🔄 Đang kết nối tới cổng thanh toán VNPay...', 'success');
+      showToast('🔄 Đang tạo liên kết thanh toán VNPay...', 'success');
       const res = await fetch('/api/payment/vnpay/create', {
         method: 'POST',
         headers: {
@@ -494,7 +494,7 @@ window.confirmOrderWithPayment = async function () {
         })
       });
       const json = await res.json();
-      if (json.payUrl) {
+      if (json.paymentUrl) {
         // Lưu lịch sử local dự phòng
         try {
           const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
@@ -510,9 +510,9 @@ window.confirmOrderWithPayment = async function () {
         closeCartModal();
 
         // Chuyển hướng người dùng sang trang thanh toán VNPay
-        window.location.href = json.payUrl;
+        window.location.href = json.paymentUrl;
       } else {
-        showToast('❌ Lỗi tạo URL thanh toán: ' + (json.message || 'Không xác định'), 'error');
+        showToast('❌ Lỗi tạo link VNPay: ' + (json.message || 'Không xác định'), 'error');
       }
     } catch (err) {
       console.error('Error creating VNPay URL:', err);
@@ -1941,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initCartModalEvents();
   updateCartBadge();
 
-  // Check VNPay payment status in URL parameters
+  // Check payment status in URL parameters (VietQR / PayOS / VNPay)
   const urlParams = new URLSearchParams(window.location.search);
   const payment = urlParams.get('payment');
   const orderId = urlParams.get('orderId');
@@ -1949,11 +1949,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (payment === 'success') {
     saveCartItems([]);
     updateCartBadge();
-    showToast(`🎉 Thanh toán đơn hàng #${orderId} thành công qua VNPay!`, 'success');
-    alert(`💳 THANH TOÁN VNPAY THÀNH CÔNG!\n\n📌 Mã đơn hàng: #${orderId}\n\n🚚 Đơn hàng của bạn đã được xác nhận thanh toán và đang chuẩn bị giao hàng!`);
+    showToast(`🎉 Thanh toán đơn hàng #${orderId} thành công qua VietQR!`, 'success');
+    alert(`💳 THANH TOÁN VIETQR THÀNH CÔNG!\n\n📌 Mã đơn hàng: #${orderId}\n\n🚚 Đơn hàng của bạn đã được xác nhận thanh toán và đang chuẩn bị giao hàng!`);
     window.history.replaceState({}, document.title, "/");
   } else if (payment === 'failed') {
-    showToast('❌ Thanh toán qua VNPay thất bại hoặc đã bị hủy!', 'error');
+    showToast('❌ Thanh toán qua VietQR thất bại hoặc đã bị hủy!', 'error');
     window.history.replaceState({}, document.title, "/");
   }
 });
