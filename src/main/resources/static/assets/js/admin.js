@@ -66,6 +66,9 @@ function initTabNavigation() {
       if (targetTab === 'revenue') {
         renderRevenueDashboard();
       }
+      if (targetTab === 'inventory') {
+        loadInventory();
+      }
     });
   });
 }
@@ -1488,3 +1491,163 @@ window.closeOrderItemsPopup = function () {
   if (popup) popup.remove();
   document.removeEventListener('click', _closePopupOnOutsideClick);
 };
+
+/* ==========================================
+   INVENTORY MANAGEMENT
+   ========================================== */
+let _inventoryData = [];
+
+async function loadInventory() {
+  const tbody = document.getElementById('inv-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">⏳ Đang tải...</td></tr>';
+  try {
+    const res = await fetch('/api/inventory');
+    _inventoryData = await res.json();
+    renderInventoryTable(_inventoryData);
+    updateInventoryStats(_inventoryData);
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#ef4444;">❌ Không thể tải dữ liệu kho!</td></tr>';
+  }
+}
+
+function updateInventoryStats(data) {
+  const total = data.length;
+  const inStock = data.filter(i => i.stockStatus === 'in_stock').length;
+  const low = data.filter(i => i.stockStatus === 'low_stock').length;
+  const out = data.filter(i => i.stockStatus === 'out_of_stock').length;
+  const el = id => document.getElementById(id);
+  if (el('inv-stat-total'))    el('inv-stat-total').textContent = total;
+  if (el('inv-stat-in-stock')) el('inv-stat-in-stock').textContent = inStock;
+  if (el('inv-stat-low'))      el('inv-stat-low').textContent = low;
+  if (el('inv-stat-out'))      el('inv-stat-out').textContent = out;
+}
+
+function renderInventoryTable(data) {
+  const tbody = document.getElementById('inv-table-body');
+  if (!tbody) return;
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">📭 Chưa có dữ liệu tồn kho. Nhấn "Khởi tạo tất cả sản phẩm" để bắt đầu.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(item => {
+    const statusBadge = {
+      in_stock:     `<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:0.82rem;font-weight:700;">✅ Còn hàng</span>`,
+      low_stock:    `<span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:0.82rem;font-weight:700;">⚠️ Sắp hết</span>`,
+      out_of_stock: `<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:0.82rem;font-weight:700;">❌ Hết hàng</span>`
+    }[item.stockStatus] || '';
+    const imgHtml = item.productImage
+      ? `<img src="${item.productImage}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;margin-right:10px;vertical-align:middle;" onerror="this.style.display='none'" />`
+      : '<span style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;margin-right:10px;font-size:1.2rem;">🍎</span>';
+    const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleString('vi-VN') : 'Chưa cập nhật';
+    const price = item.price ? Number(item.price).toLocaleString('vi-VN') + ' đ' : 'N/A';
+    return `<tr data-product-id="${item.productId}" data-stock-status="${item.stockStatus}" data-product-name="${(item.productName||'').toLowerCase()}" data-category="${(item.categoryName||'').toLowerCase()}">
+      <td><div style="display:flex;align-items:center;">${imgHtml}<span style="font-weight:600;">${item.productName}</span></div></td>
+      <td>${item.categoryName || 'N/A'}</td>
+      <td>${price}</td>
+      <td><span style="font-size:1.1rem;font-weight:800;color:${item.quantityInStock === 0 ? '#dc2626' : item.quantityInStock <= item.lowStockThreshold ? '#d97706' : '#16a34a'}">${item.quantityInStock}</span> <span style="font-size:0.82rem;color:#94a3b8;">${item.unit || ''}</span></td>
+      <td>${item.lowStockThreshold}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:0.82rem;color:#64748b;">${updatedAt}</td>
+      <td>
+        <button onclick="openInvModal(${item.productId}, '${(item.productName||'').replace(/'/g,"\\'").replace(/"/g,"&quot;")}', ${item.quantityInStock}, ${item.lowStockThreshold})" style="padding:5px 10px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:700;margin-right:4px;">✏️ Sửa</button>
+        <button onclick="adjustInventory(${item.productId}, 1)" style="padding:5px 8px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;">+1</button>
+        <button onclick="adjustInventory(${item.productId}, -1)" style="padding:5px 8px;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;margin-left:2px;">-1</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.filterInventoryTable = function () {
+  const search = (document.getElementById('inv-search-input')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('inv-status-filter')?.value || '';
+  const rows = document.querySelectorAll('#inv-table-body tr[data-product-id]');
+  rows.forEach(row => {
+    const name = row.dataset.productName || '';
+    const cat = row.dataset.category || '';
+    const status = row.dataset.stockStatus || '';
+    const matchSearch = !search || name.includes(search) || cat.includes(search);
+    const matchStatus = !statusFilter || status === statusFilter;
+    row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+  });
+};
+
+window.openInvModal = function (productId, productName, quantity, threshold) {
+  document.getElementById('inv-modal-product-id').value = productId;
+  document.getElementById('inv-modal-product-name').value = productName;
+  document.getElementById('inv-modal-quantity').value = quantity;
+  document.getElementById('inv-modal-threshold').value = threshold;
+  const modal = document.getElementById('inv-modal');
+  if (modal) { modal.style.display = 'flex'; }
+};
+
+window.closeInvModal = function () {
+  const modal = document.getElementById('inv-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveInventory = async function () {
+  const productId = parseInt(document.getElementById('inv-modal-product-id').value);
+  const quantity = parseInt(document.getElementById('inv-modal-quantity').value);
+  const threshold = parseInt(document.getElementById('inv-modal-threshold').value) || 10;
+  if (isNaN(productId) || isNaN(quantity)) {
+    alert('Vui lòng nhập số lượng hợp lệ!'); return;
+  }
+  try {
+    const res = await fetch('/api/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, quantityInStock: quantity, lowStockThreshold: threshold })
+    });
+    const json = await res.json();
+    if (json.success) {
+      closeInvModal();
+      await loadInventory();
+      showAdminToast('✅ Đã cập nhật tồn kho thành công!', 'success');
+    } else {
+      alert('Lỗi: ' + json.message);
+    }
+  } catch (err) {
+    alert('Lỗi kết nối!');
+  }
+};
+
+window.adjustInventory = async function (productId, delta) {
+  try {
+    const res = await fetch(`/api/inventory/${productId}/adjust`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delta })
+    });
+    const json = await res.json();
+    if (json.success) {
+      await loadInventory();
+      showAdminToast(delta > 0 ? '📦 Đã nhập thêm hàng!' : '📤 Đã xuất hàng!', 'success');
+    } else {
+      alert('Lỗi: ' + json.message);
+    }
+  } catch (err) {
+    alert('Lỗi kết nối!');
+  }
+};
+
+window.initAllInventory = async function () {
+  if (!confirm('Hệ thống sẽ tự động tạo bản ghi tồn kho cho tất cả sản phẩm chưa có. Tiếp tục?')) return;
+  try {
+    const res = await fetch('/api/inventory/init-all', { method: 'POST' });
+    const json = await res.json();
+    alert(json.message || 'Hoàn tất!');
+    await loadInventory();
+  } catch (err) {
+    alert('Lỗi kết nối!');
+  }
+};
+
+function showAdminToast(msg, type = 'success') {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:999999;padding:12px 20px;border-radius:12px;font-weight:700;font-size:0.95rem;color:#fff;background:${type === 'success' ? '#10b981' : '#ef4444'};box-shadow:0 8px 24px rgba(0,0,0,0.2);animation:fadeIn 0.3s ease;`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2800);
+}
+

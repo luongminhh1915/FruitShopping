@@ -76,6 +76,12 @@
               <span class="menu-text">Quản lý Loại hoa quả</span>
             </button>
           </li>
+          <li>
+            <button class="menu-item" data-tab="inventory">
+              <span class="menu-icon">📦</span>
+              <span class="menu-text">Quản lý Kho hàng</span>
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -525,6 +531,103 @@
       </div>
     </div>
   </div>
+
+        <!-- ===== INVENTORY TAB ===== -->
+        <div class="tab-pane" id="tab-inventory">
+          <!-- Stats -->
+          <div class="admin-stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">📦</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-total">0</span>
+                <span class="stat-label">Tổng sản phẩm theo dõi</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6;">✅</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-in-stock">0</span>
+                <span class="stat-label">Còn hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">⚠️</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-low">0</span>
+                <span class="stat-label">Sắp hết hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">❌</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-out">0</span>
+                <span class="stat-label">Hết hàng</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions & Filter -->
+          <div class="admin-filter-bar" style="flex-wrap:wrap;gap:10px;">
+            <div class="search-box-admin">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inv-search-input" placeholder="Tìm theo tên sản phẩm, danh mục..." oninput="filterInventoryTable()" />
+            </div>
+            <select id="inv-status-filter" class="filter-select-admin" onchange="filterInventoryTable()">
+              <option value="">-- Tất cả trạng thái --</option>
+              <option value="in_stock">Còn hàng</option>
+              <option value="low_stock">Sắp hết hàng</option>
+              <option value="out_of_stock">Hết hàng</option>
+            </select>
+            <button onclick="initAllInventory()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">
+              🔄 Khởi tạo tất cả sản phẩm
+            </button>
+          </div>
+
+          <!-- Inventory Table -->
+          <div class="table-container">
+            <table class="admin-table" id="inv-table">
+              <thead>
+                <tr>
+                  <th>Sản phẩm</th>
+                  <th>Danh mục</th>
+                  <th>Đơn giá</th>
+                  <th>Tồn kho</th>
+                  <th>Ngưỡng cảnh báo</th>
+                  <th>Trạng thái</th>
+                  <th>Cập nhật lúc</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="inv-table-body">
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">Đang tải dữ liệu kho...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal: Cập nhật tồn kho -->
+        <div id="inv-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(6px);z-index:99999;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:20px;padding:32px;width:100%;max-width:440px;box-shadow:0 25px 50px rgba(0,0,0,0.3);">
+            <h3 style="margin:0 0 20px;font-size:1.2rem;font-weight:800;color:#1e293b;">📦 Cập nhật số lượng kho</h3>
+            <input type="hidden" id="inv-modal-product-id" />
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:700;font-size:0.9rem;color:#475569;display:block;margin-bottom:6px;">Tên sản phẩm</label>
+              <input type="text" id="inv-modal-product-name" readonly style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;font-size:0.95rem;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:700;font-size:0.9rem;color:#475569;display:block;margin-bottom:6px;">Số lượng tồn kho <span style="color:#ef4444;">*</span></label>
+              <input type="number" id="inv-modal-quantity" min="0" placeholder="Nhập số lượng..." style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:24px;">
+              <label style="font-weight:700;font-size:0.9rem;color:#475569;display:block;margin-bottom:6px;">Ngưỡng cảnh báo sắp hết hàng</label>
+              <input type="number" id="inv-modal-threshold" min="1" placeholder="Mặc định: 10" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;box-sizing:border-box;" />
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;">
+              <button onclick="closeInvModal()" style="padding:10px 18px;border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:10px;font-weight:700;cursor:pointer;">Hủy</button>
+              <button onclick="saveInventory()" style="padding:10px 24px;border:none;background:#10b981;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;">💾 Lưu</button>
+            </div>
+          </div>
+        </div>
 
   <!-- Scripts -->
   <script src="../../assets/js/admin.js"></script>
