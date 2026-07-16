@@ -364,6 +364,79 @@
             </table>
           </div>
         </div>
+
+        <!-- ===== INVENTORY TAB ===== -->
+        <div class="tab-pane" id="tab-inventory">
+          <!-- Stats -->
+          <div class="admin-stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">📦</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-total">0</span>
+                <span class="stat-label">Tổng sản phẩm theo dõi</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6;">✅</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-in-stock">0</span>
+                <span class="stat-label">Còn hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">⚠️</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-low">0</span>
+                <span class="stat-label">Sắp hết hàng</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">❌</div>
+              <div class="stat-info">
+                <span class="stat-value" id="inv-stat-out">0</span>
+                <span class="stat-label">Hết hàng</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions & Filter -->
+          <div class="admin-filter-bar" style="flex-wrap:wrap;gap:10px;">
+            <div class="search-box-admin">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inv-search-input" placeholder="Tìm theo tên sản phẩm, danh mục..." oninput="filterInventoryTable()" />
+            </div>
+            <select id="inv-status-filter" class="filter-select-admin" onchange="filterInventoryTable()">
+              <option value="">-- Tất cả trạng thái --</option>
+              <option value="in_stock">Còn hàng</option>
+              <option value="low_stock">Sắp hết hàng</option>
+              <option value="out_of_stock">Hết hàng</option>
+            </select>
+            <button onclick="initAllInventory()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">
+              🔄 Khởi tạo tất cả sản phẩm
+            </button>
+          </div>
+
+          <!-- Inventory Table -->
+          <div class="table-container">
+            <table class="admin-table" id="inv-table">
+              <thead>
+                <tr>
+                  <th>Sản phẩm</th>
+                  <th>Danh mục</th>
+                  <th>Đơn giá</th>
+                  <th>Tồn kho</th>
+                  <th>Ngưỡng cảnh báo</th>
+                  <th>Trạng thái</th>
+                  <th>Cập nhật lúc</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="inv-table-body">
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">Đang tải dữ liệu kho...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -532,78 +605,6 @@
     </div>
   </div>
 
-        <!-- ===== INVENTORY TAB ===== -->
-        <div class="tab-pane" id="tab-inventory">
-          <!-- Stats -->
-          <div class="admin-stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">📦</div>
-              <div class="stat-info">
-                <span class="stat-value" id="inv-stat-total">0</span>
-                <span class="stat-label">Tổng sản phẩm theo dõi</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6;">✅</div>
-              <div class="stat-info">
-                <span class="stat-value" id="inv-stat-in-stock">0</span>
-                <span class="stat-label">Còn hàng</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">⚠️</div>
-              <div class="stat-info">
-                <span class="stat-value" id="inv-stat-low">0</span>
-                <span class="stat-label">Sắp hết hàng</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">❌</div>
-              <div class="stat-info">
-                <span class="stat-value" id="inv-stat-out">0</span>
-                <span class="stat-label">Hết hàng</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions & Filter -->
-          <div class="admin-filter-bar" style="flex-wrap:wrap;gap:10px;">
-            <div class="search-box-admin">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="inv-search-input" placeholder="Tìm theo tên sản phẩm, danh mục..." oninput="filterInventoryTable()" />
-            </div>
-            <select id="inv-status-filter" class="filter-select-admin" onchange="filterInventoryTable()">
-              <option value="">-- Tất cả trạng thái --</option>
-              <option value="in_stock">Còn hàng</option>
-              <option value="low_stock">Sắp hết hàng</option>
-              <option value="out_of_stock">Hết hàng</option>
-            </select>
-            <button onclick="initAllInventory()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">
-              🔄 Khởi tạo tất cả sản phẩm
-            </button>
-          </div>
-
-          <!-- Inventory Table -->
-          <div class="table-container">
-            <table class="admin-table" id="inv-table">
-              <thead>
-                <tr>
-                  <th>Sản phẩm</th>
-                  <th>Danh mục</th>
-                  <th>Đơn giá</th>
-                  <th>Tồn kho</th>
-                  <th>Ngưỡng cảnh báo</th>
-                  <th>Trạng thái</th>
-                  <th>Cập nhật lúc</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody id="inv-table-body">
-                <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">Đang tải dữ liệu kho...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
         <!-- Modal: Cập nhật tồn kho -->
         <div id="inv-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(6px);z-index:99999;align-items:center;justify-content:center;">

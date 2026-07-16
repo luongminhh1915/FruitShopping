@@ -6,6 +6,7 @@ import fruitshopping.fruitshopping.repository.InventoryRepository;
 import fruitshopping.fruitshopping.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
+@Transactional
 public class InventoryController {
 
     private final InventoryRepository inventoryRepository;
