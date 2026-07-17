@@ -68,6 +68,23 @@ function addToCart(product, qty = 1) {
     return;
   }
 
+  // === KIỂM TRA TỒN KHO ===
+  const inv = _inventoryMap[product.productId];
+  if (inv) {
+    if (inv.quantityInStock === 0 || inv.stockStatus === 'out_of_stock') {
+      showToast(`❌ "${product.name}" đã hết hàng!`, 'error');
+      return;
+    }
+    // Kiểm tra tổng số lượng trong giỏ
+    const items = getCartItems();
+    const existingItem = items.find(i => i.productId === product.productId);
+    const currentQtyInCart = existingItem ? (existingItem.quantity || 0) : 0;
+    if (currentQtyInCart + qty > inv.quantityInStock) {
+      showToast(`⚠️ "${product.name}" chỉ còn ${inv.quantityInStock} ${product.unit || 'kg'} trong kho! Bạn đã có ${currentQtyInCart} trong giỏ.`, 'error');
+      return;
+    }
+  }
+
   let items = getCartItems();
   const existingIndex = items.findIndex(item => item.productId === product.productId);
 
@@ -225,7 +242,16 @@ window.saveCartAddress = async function () {
 window.changeCartQty = function (index, delta) {
   let items = getCartItems();
   if (items[index]) {
-    items[index].quantity = (items[index].quantity || 1) + delta;
+    const newQty = (items[index].quantity || 1) + delta;
+    // === KIỂM TRA TỒN KHO KHI TĂNG SỐ LƯỢNG ===
+    if (delta > 0) {
+      const inv = _inventoryMap[items[index].productId];
+      if (inv && newQty > inv.quantityInStock) {
+        showToast(`⚠️ "${items[index].name}" chỉ còn ${inv.quantityInStock} ${items[index].unit || 'kg'} trong kho!`, 'error');
+        return;
+      }
+    }
+    items[index].quantity = newQty;
     if (items[index].quantity <= 0) {
       items.splice(index, 1);
     }
@@ -537,6 +563,9 @@ window.confirmOrderWithPayment = async function () {
     updateCartBadge();
     closePaymentMethodModal();
     closeCartModal();
+    
+    // Tự động tải lại trang để cập nhật tồn kho mới
+    window.location.reload();
   }
 };
 
@@ -590,6 +619,9 @@ window.simulateVnPaySuccess = async function () {
   closePaymentMethodModal();
   closeCartModal();
   _pendingVnPayOrder = null;
+  
+  // Tự động tải lại trang để cập nhật tồn kho mới
+  window.location.reload();
 };
 
 let _currentOhFilter = 'ALL';
@@ -810,8 +842,32 @@ function renderProductCard(product) {
     ? `<img src="${firstImg}" alt="${product.name}" loading="lazy">`
     : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:4rem;">${firstImg || product.emoji || '🍎'}</div>`;
 
+  // === STOCK INFO ===
+  const inv = _inventoryMap[product.productId];
+  let stockBadgeHtml = '';
+  let isOutOfStock = false;
+  let stockQty = null;
+
+  if (inv) {
+    const qty = inv.quantityInStock;
+    const status = inv.stockStatus;
+    stockQty = qty;
+    if (status === 'out_of_stock') {
+      isOutOfStock = true;
+      stockBadgeHtml = `<span class="stock-badge out-of-stock">❌ Hết hàng</span>`;
+    } else if (status === 'low_stock') {
+      stockBadgeHtml = `<span class="stock-badge low-stock">⚠️ Còn ${qty} ${product.unit || 'kg'}</span>`;
+    } else {
+      stockBadgeHtml = `<span class="stock-badge in-stock">✅ Còn ${qty} ${product.unit || 'kg'}</span>`;
+    }
+  }
+
+  const addBtnAttrs = isOutOfStock
+    ? `class="btn-add-cart disabled" disabled title="Hết hàng"`
+    : `class="btn-add-cart" title="Thêm vào giỏ" onclick='event.stopPropagation(); addToCart(${JSON.stringify(product)})'`;
+
   return `
-    <div class="product-card" id="product-${product.productId}">
+    <div class="product-card${isOutOfStock ? ' out-of-stock' : ''}" id="product-${product.productId}">
       <div class="product-img-wrap" onclick="quickView(${product.productId})" style="cursor:pointer;">
         ${img}
         <div class="product-badges">
@@ -823,13 +879,14 @@ function renderProductCard(product) {
         <h3 class="product-name" onclick="quickView(${product.productId})" style="cursor:pointer;">${product.name}</h3>
         <div class="product-meta">
           <span class="product-origin">📍 ${product.origin || 'Việt Nam'}</span>
+          ${stockBadgeHtml}
         </div>
         <div class="product-price-row">
           <div>
             <span class="product-price">${priceFormatted}</span>
             <span class="product-unit">/${product.unit || 'kg'}</span>
           </div>
-          <button class="btn-add-cart" title="Thêm vào giỏ" onclick='event.stopPropagation(); addToCart(${JSON.stringify(product)})'>+</button>
+          <button ${addBtnAttrs}>${isOutOfStock ? '✕' : '+'}</button>
         </div>
       </div>
     </div>
@@ -1023,6 +1080,7 @@ let _cachedFeaturedProducts = [];
 let _currentFilteredList = [];
 let _currentPage = 1;
 const PAGE_SIZE = 12;
+let _inventoryMap = {};  // { productId: { quantityInStock, stockStatus, ... } }
 
 function renderPaginatedProducts(page = 1) {
   _currentPage = page;
@@ -1091,6 +1149,19 @@ async function loadFeaturedProducts() {
 
   _cachedFeaturedProducts = products;
   _currentFilteredList = products;
+
+  // === FETCH INVENTORY CHO TẤT CẢ SẢN PHẨM ===
+  try {
+    const ids = products.map(p => p.productId).join(',');
+    const invRes = await fetch(`/api/inventory/by-products?ids=${ids}`);
+    if (invRes.ok) {
+      const invData = await invRes.json();
+      _inventoryMap = invData || {};
+    }
+  } catch (e) {
+    console.warn('[Inventory] Không thể tải dữ liệu tồn kho:', e);
+  }
+
   renderPaginatedProducts(1);
 }
 
@@ -1951,9 +2022,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateCartBadge();
     showToast(`🎉 Thanh toán đơn hàng #${orderId} thành công qua VietQR!`, 'success');
     alert(`💳 THANH TOÁN VIETQR THÀNH CÔNG!\n\n📌 Mã đơn hàng: #${orderId}\n\n🚚 Đơn hàng của bạn đã được xác nhận thanh toán và đang chuẩn bị giao hàng!`);
-    window.history.replaceState({}, document.title, "/");
+    window.location.href = "/";
   } else if (payment === 'failed') {
     showToast('❌ Thanh toán qua VietQR thất bại hoặc đã bị hủy!', 'error');
-    window.history.replaceState({}, document.title, "/");
+    window.location.href = "/";
   }
 });
+

@@ -27,6 +27,7 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
     /* =============================================
      * HELPER – chuyển đổi status code → label
@@ -141,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         paymentRepository.save(payment);
 
-        // Tạo OrderItems
+        // Tạo OrderItems & trừ tồn kho
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             List<Product> products = productRepository.findAll();
             Product defaultProduct = !products.isEmpty() ? products.get(0) : null;
@@ -151,20 +152,35 @@ public class OrderServiceImpl implements OrderService {
                 if (itemReq.getProductId() != null) {
                     product = productRepository.findById(itemReq.getProductId()).orElse(defaultProduct);
                 }
-                if (product != null) {
-                    BigDecimal price = itemReq.getPrice() != null ? itemReq.getPrice() : BigDecimal.valueOf(50000);
-                    int qty = itemReq.getQuantity() != null ? itemReq.getQuantity() : 1;
-                    BigDecimal subtotal = price.multiply(BigDecimal.valueOf(qty));
+                if (product == null) continue;
 
-                    OrderItem orderItem = OrderItem.builder()
-                            .order(order)
-                            .product(product)
-                            .quantity(qty)
-                            .unitPrice(price)
-                            .subtotal(subtotal)
-                            .build();
-                    orderItemRepository.save(orderItem);
+                final BigDecimal price = itemReq.getPrice() != null ? itemReq.getPrice() : BigDecimal.valueOf(50000);
+                final int qty = itemReq.getQuantity() != null ? itemReq.getQuantity() : 1;
+                final BigDecimal subtotal = price.multiply(BigDecimal.valueOf(qty));
+
+                // === KIỂM TRA & TRỪ TỒN KHO ===
+                Inventory inv = inventoryRepository.findByProduct(product).orElse(null);
+                if (inv != null) {
+                    int currentStock = inv.getQuantityInStock();
+                    String unit = product.getUnit() != null ? product.getUnit() : "kg";
+                    if (currentStock < qty) {
+                        throw new RuntimeException(
+                            "Sản phẩm '" + product.getName() + "' chỉ còn " + currentStock +
+                            " " + unit + " trong kho, không đủ để đặt " + qty + " " + unit + "!"
+                        );
+                    }
+                    inv.setQuantityInStock(currentStock - qty);
+                    inventoryRepository.save(inv);
                 }
+
+                OrderItem orderItem = OrderItem.builder()
+                        .order(order)
+                        .product(product)
+                        .quantity(qty)
+                        .unitPrice(price)
+                        .subtotal(subtotal)
+                        .build();
+                orderItemRepository.save(orderItem);
             }
         }
 

@@ -46,6 +46,21 @@ public class InventoryController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /** GET /api/inventory/by-products?ids=1,2,3 — Lấy tồn kho hàng loạt theo danh sách productId */
+    @GetMapping("/by-products")
+    public ResponseEntity<Map<Integer, Map<String, Object>>> getByProducts(
+            @RequestParam("ids") List<Integer> ids) {
+        List<Inventory> invList = inventoryRepository.findAllWithProduct()
+                .stream()
+                .filter(inv -> ids.contains(inv.getProduct().getProductId()))
+                .collect(Collectors.toList());
+        Map<Integer, Map<String, Object>> result = new HashMap<>();
+        for (Inventory inv : invList) {
+            result.put(inv.getProduct().getProductId(), toMap(inv));
+        }
+        return ResponseEntity.ok(result);
+    }
+
     /** POST /api/inventory — Tạo mới hoặc cập nhật tồn kho */
     @PostMapping
     public ResponseEntity<Map<String, Object>> upsertInventory(@RequestBody Map<String, Object> body) {
