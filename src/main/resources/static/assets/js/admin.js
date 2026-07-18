@@ -2,6 +2,41 @@
  * FruitFresh – Admin Dashboard JavaScript
  */
 
+/* ==========================================
+   PAGINATION CONFIGURATION & HELPER
+   ========================================== */
+let productsPage = 1;
+let usersPage = 1;
+let ordersPage = 1;
+let revenuePage = 1;
+let inventoryPage = 1;
+const ADMIN_PAGE_SIZE = 20;
+
+function renderPagination(containerId, totalItems, itemsPerPage, currentPage, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  // Nút "Trước"
+  html += `<button class="admin-pagination-btn ${currentPage === 1 ? 'disabled' : ''}" ${currentPage === 1 ? 'disabled' : ''} onclick="${onPageChange}(${currentPage - 1})">‹ Trước</button>`;
+
+  // Các trang
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button class="admin-pagination-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageChange}(${i})">${i}</button>`;
+  }
+
+  // Nút "Sau"
+  html += `<button class="admin-pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" ${currentPage === totalPages ? 'disabled' : ''} onclick="${onPageChange}(${currentPage + 1})">Sau ›</button>`;
+
+  container.innerHTML = html;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Security: ensure user is authenticated and is ADMIN
   if (!Auth.isLoggedIn()) {
@@ -229,6 +264,7 @@ async function loadProducts() {
     if (res.ok) {
       const json = await res.json();
       productsList = json.data || [];
+      productsPage = 1; // Reset to page 1 on load
       renderProductsTable();
     }
   } catch (err) {
@@ -242,10 +278,17 @@ function renderProductsTable() {
 
   if (productsList.length === 0) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#64748b;padding:24px;">Chưa có sản phẩm nào. Hãy bấm "Thêm Sản phẩm"!</td></tr>`;
+    document.getElementById('products-pagination').innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = productsList.map(p => {
+  // Phân trang: Lấy 20 sản phẩm cho trang hiện tại
+  const totalItems = productsList.length;
+  const start = (productsPage - 1) * ADMIN_PAGE_SIZE;
+  const end = start + ADMIN_PAGE_SIZE;
+  const pagedProducts = productsList.slice(start, end);
+
+  tbody.innerHTML = pagedProducts.map(p => {
     const statusBadge = p.status === 1
       ? `<span class="badge-admin badge-admin-success">Tươi ngon / Còn hàng</span>`
       : `<span class="badge-admin badge-admin-danger">Tạm hết hàng</span>`;
@@ -270,7 +313,15 @@ function renderProductsTable() {
       </tr>
     `;
   }).join('');
+
+  // Vẽ các nút phân trang
+  renderPagination('products-pagination', totalItems, ADMIN_PAGE_SIZE, productsPage, 'changeProductsPage');
 }
+
+window.changeProductsPage = function (page) {
+  productsPage = page;
+  renderProductsTable();
+};
 
 function initModalEvents() {
   const modal = document.getElementById('product-modal');
@@ -771,12 +822,22 @@ function updateUserStats() {
   if (adminEl) adminEl.textContent = admins.length;
 }
 
+let lastUserSearch = '';
+let lastUserRole = '';
+
 function renderUsersTable() {
   const tbody = document.getElementById('user-table-body');
   if (!tbody) return;
 
   const searchVal = (document.getElementById('user-search-input')?.value || '').toLowerCase().trim();
   const roleVal = document.getElementById('user-role-filter')?.value || '';
+
+  // Tự động quay về trang 1 nếu thay đổi bộ lọc tìm kiếm
+  if (searchVal !== lastUserSearch || roleVal !== lastUserRole) {
+    usersPage = 1;
+    lastUserSearch = searchVal;
+    lastUserRole = roleVal;
+  }
 
   const filteredUsers = usersList.filter(user => {
     const matchSearch = !searchVal ||
@@ -791,10 +852,17 @@ function renderUsersTable() {
 
   if (filteredUsers.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px;">Không tìm thấy người dùng nào phù hợp.</td></tr>`;
+    document.getElementById('users-pagination').innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = filteredUsers.map(u => {
+  // Phân trang: lấy 20 dòng
+  const totalItems = filteredUsers.length;
+  const start = (usersPage - 1) * ADMIN_PAGE_SIZE;
+  const end = start + ADMIN_PAGE_SIZE;
+  const pagedUsers = filteredUsers.slice(start, end);
+
+  tbody.innerHTML = pagedUsers.map(u => {
     const avatarContent = (u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('/')))
       ? `<img src="${u.avatar}" alt="avatar" />`
       : `<span>${u.avatar || '👤'}</span>`;
@@ -842,7 +910,14 @@ function renderUsersTable() {
       </tr>
     `;
   }).join('');
+
+  renderPagination('users-pagination', totalItems, ADMIN_PAGE_SIZE, usersPage, 'changeUsersPage');
 }
+
+window.changeUsersPage = function (page) {
+  usersPage = page;
+  renderUsersTable();
+};
 
 window.toggleUserStatus = async function (userId, isActivating) {
   const token = localStorage.getItem('token');
@@ -1101,12 +1176,25 @@ async function renderRevenueDashboard() {
 }
 
 
+let lastActiveRevenueOrders = [];
+let lastRevenueSearchKeyword = '';
+
 window.renderRevenueTable = function (activeOrders) {
   const body = document.getElementById('revenue-table-body');
   if (!body) return;
 
+  if (activeOrders) {
+    lastActiveRevenueOrders = activeOrders;
+  }
+  const orders = lastActiveRevenueOrders || [];
+
   const searchKeyword = (document.getElementById('rev-search-input')?.value || '').toLowerCase().trim();
-  const orders = activeOrders || [];
+
+  // Reset về trang 1 nếu thay đổi từ khóa
+  if (searchKeyword !== lastRevenueSearchKeyword) {
+    revenuePage = 1;
+    lastRevenueSearchKeyword = searchKeyword;
+  }
 
   const filtered = orders.filter(o => {
     if (!searchKeyword) return true;
@@ -1125,8 +1213,15 @@ window.renderRevenueTable = function (activeOrders) {
         </td>
       </tr>
     `;
+    document.getElementById('revenue-pagination').innerHTML = '';
     return;
   }
+
+  // Phân trang: lấy 20 dòng
+  const totalItems = filtered.length;
+  const start = (revenuePage - 1) * ADMIN_PAGE_SIZE;
+  const end = start + ADMIN_PAGE_SIZE;
+  const pagedRevenue = filtered.slice(start, end);
 
   const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
   const fmtDate = (dt) => {
@@ -1135,7 +1230,7 @@ window.renderRevenueTable = function (activeOrders) {
     return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  body.innerHTML = filtered.map(o => {
+  body.innerHTML = pagedRevenue.map(o => {
     const amt       = parseFloat(o.totalPrice) || 0;
     const isVnPay   = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
     const payStyle  = isVnPay ? 'background:#e0f2fe; color:#0369a1;' : 'background:#fef3c7; color:#d97706;';
@@ -1156,6 +1251,13 @@ window.renderRevenueTable = function (activeOrders) {
       </tr>
     `;
   }).join('');
+
+  renderPagination('revenue-pagination', totalItems, ADMIN_PAGE_SIZE, revenuePage, 'changeRevenuePage');
+};
+
+window.changeRevenuePage = function (page) {
+  revenuePage = page;
+  renderRevenueTable();
 };
 
 
@@ -1211,12 +1313,29 @@ function updateOrderStats(orders) {
   if (doneEl) doneEl.textContent = done;
 }
 
+let lastOrderSearch = '';
+let lastOrderStatus = '';
+let lastOrdersData = [];
+
 function renderOrderTable(orders) {
   const tbody = document.getElementById('order-admin-table-body');
   if (!tbody) return;
 
+  if (orders) {
+    lastOrdersData = orders;
+  }
+  const ordersList = lastOrdersData || [];
+
   const keyword = (document.getElementById('ord-search-input')?.value || '').toLowerCase().trim();
   const statusFilter = document.getElementById('ord-status-filter')?.value || '';
+
+  // Tự động quay lại trang 1 nếu thay đổi bộ lọc tìm kiếm
+  if (keyword !== lastOrderSearch || statusFilter !== lastOrderStatus) {
+    ordersPage = 1;
+    lastOrderSearch = keyword;
+    lastOrderStatus = statusFilter;
+  }
+
   const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
   const fmtDate = (dt) => {
     if (!dt) return 'N/A';
@@ -1224,7 +1343,7 @@ function renderOrderTable(orders) {
     return d.toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
   };
 
-  const filtered = orders.filter(o => {
+  const filtered = ordersList.filter(o => {
     const matchKw = !keyword ||
       (o.customerName || '').toLowerCase().includes(keyword) ||
       (o.customerEmail || '').toLowerCase().includes(keyword) ||
@@ -1235,10 +1354,17 @@ function renderOrderTable(orders) {
 
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
+    document.getElementById('orders-pagination').innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = filtered.map(o => {
+  // Phân trang: lấy 20 dòng
+  const totalItems = filtered.length;
+  const start = (ordersPage - 1) * ADMIN_PAGE_SIZE;
+  const end = start + ADMIN_PAGE_SIZE;
+  const pagedOrders = filtered.slice(start, end);
+
+  tbody.innerHTML = pagedOrders.map(o => {
     const statusInfo = getOrderStatusInfo(o.status);
     const actionBtns = getOrderActionButtons(o);
     const isVnPay = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
@@ -1287,7 +1413,14 @@ function renderOrderTable(orders) {
       </tr>
     `;
   }).join('');
+
+  renderPagination('orders-pagination', totalItems, ADMIN_PAGE_SIZE, ordersPage, 'changeOrdersPage');
 }
+
+window.changeOrdersPage = function (page) {
+  ordersPage = page;
+  renderOrderTable();
+};
 
 function getOrderStatusInfo(status) {
   switch (status) {
@@ -1495,7 +1628,9 @@ window.closeOrderItemsPopup = function () {
 /* ==========================================
    INVENTORY MANAGEMENT
    ========================================== */
-let _inventoryData = [];
+let lastInventoryData = [];
+let lastInventorySearch = '';
+let lastInventoryStatus = '';
 
 async function loadInventory() {
   const tbody = document.getElementById('inv-table-body');
@@ -1504,6 +1639,7 @@ async function loadInventory() {
   try {
     const res = await fetch('/api/inventory');
     _inventoryData = await res.json();
+    inventoryPage = 1; // Reset to page 1 on load
     renderInventoryTable(_inventoryData);
     updateInventoryStats(_inventoryData);
   } catch (err) {
@@ -1526,11 +1662,45 @@ function updateInventoryStats(data) {
 function renderInventoryTable(data) {
   const tbody = document.getElementById('inv-table-body');
   if (!tbody) return;
-  if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">📭 Chưa có dữ liệu tồn kho. Nhấn "Khởi tạo tất cả sản phẩm" để bắt đầu.</td></tr>';
+
+  if (data) {
+    lastInventoryData = data;
+  }
+  const inventoryList = lastInventoryData || [];
+
+  const search = (document.getElementById('inv-search-input')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('inv-status-filter')?.value || '';
+
+  // Reset về trang 1 nếu thay đổi từ khóa hoặc trạng thái
+  if (search !== lastInventorySearch || statusFilter !== lastInventoryStatus) {
+    inventoryPage = 1;
+    lastInventorySearch = search;
+    lastInventoryStatus = statusFilter;
+  }
+
+  // Lọc dữ liệu trước khi phân trang
+  const filtered = inventoryList.filter(item => {
+    const name = (item.productName || '').toLowerCase();
+    const cat = (item.categoryName || '').toLowerCase();
+    const status = item.stockStatus || '';
+    const matchSearch = !search || name.includes(search) || cat.includes(search);
+    const matchStatus = !statusFilter || status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">📭 Không tìm thấy kết quả phù hợp.</td></tr>';
+    document.getElementById('inventory-pagination').innerHTML = '';
     return;
   }
-  tbody.innerHTML = data.map(item => {
+
+  // Phân trang: lấy 20 dòng
+  const totalItems = filtered.length;
+  const start = (inventoryPage - 1) * ADMIN_PAGE_SIZE;
+  const end = start + ADMIN_PAGE_SIZE;
+  const pagedInventory = filtered.slice(start, end);
+
+  tbody.innerHTML = pagedInventory.map(item => {
     const statusBadge = {
       in_stock:     `<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:0.82rem;font-weight:700;">✅ Còn hàng</span>`,
       low_stock:    `<span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:0.82rem;font-weight:700;">⚠️ Sắp hết</span>`,
@@ -1556,20 +1726,17 @@ function renderInventoryTable(data) {
       </td>
     </tr>`;
   }).join('');
+
+  renderPagination('inventory-pagination', totalItems, ADMIN_PAGE_SIZE, inventoryPage, 'changeInventoryPage');
 }
 
 window.filterInventoryTable = function () {
-  const search = (document.getElementById('inv-search-input')?.value || '').toLowerCase();
-  const statusFilter = document.getElementById('inv-status-filter')?.value || '';
-  const rows = document.querySelectorAll('#inv-table-body tr[data-product-id]');
-  rows.forEach(row => {
-    const name = row.dataset.productName || '';
-    const cat = row.dataset.category || '';
-    const status = row.dataset.stockStatus || '';
-    const matchSearch = !search || name.includes(search) || cat.includes(search);
-    const matchStatus = !statusFilter || status === statusFilter;
-    row.style.display = (matchSearch && matchStatus) ? '' : 'none';
-  });
+  renderInventoryTable();
+};
+
+window.changeInventoryPage = function (page) {
+  inventoryPage = page;
+  renderInventoryTable();
 };
 
 window.openInvModal = function (productId, productName, quantity, threshold) {

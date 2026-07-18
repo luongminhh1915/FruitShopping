@@ -1127,3 +1127,51 @@
   from { opacity: 0; transform: translateX(20px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+/* ==========================================
+   ADMIN PAGINATION STYLING
+   ========================================== */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+
+.admin-pagination-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: white;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  text-align: center;
+}
+
+.admin-pagination-btn:hover {
+  background: #f0fdf4;
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.admin-pagination-btn.active {
+  background: #16a34a;
+  color: white;
+  border-color: #16a34a;
+}
+
+.admin-pagination-btn:disabled,
+.admin-pagination-btn.disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+}
