@@ -1297,7 +1297,7 @@ window.loadAdminOrders = async function () {
     renderOrderTable(_allAdminOrders);
     updateOrderStats(_allAdminOrders);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
   }
 };
 
@@ -1361,7 +1361,7 @@ function renderOrderTable(orders) {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
     document.getElementById('orders-pagination').innerHTML = '';
     return;
   }
@@ -1373,11 +1373,24 @@ function renderOrderTable(orders) {
   const pagedOrders = filtered.slice(start, end);
 
   tbody.innerHTML = pagedOrders.map(o => {
-    const isDone = o.status === 4;
-    const statusLabel = isDone ? 'Hoàn thành' : 'Chưa hoàn thành';
-    const statusStyle = isDone 
+    // 1. Trạng thái thanh toán (Payment Status)
+    const isVnPay = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
+    const isPaid = o.status === 3 || o.status === 4 || (o.status === 2 && isVnPay);
+    const payLabel = isPaid ? 'Đã thanh toán' : 'Chưa thanh toán';
+    const payStyle = isPaid 
       ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' 
       : 'background:#fee2e2; color:#dc2626; border:1px solid #fee2e2;';
+
+    // 2. Trạng thái vận chuyển (Fulfillment Status)
+    let fulfillmentLabel = 'Đang chuẩn bị hàng';
+    let fulfillmentStyle = 'background:#fffbeb; color:#d97706; border:1px solid #fde68a;';
+    if (o.status === 2) {
+      fulfillmentLabel = 'Đang giao hàng';
+      fulfillmentStyle = 'background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;';
+    } else if (o.status === 4) {
+      fulfillmentLabel = 'Đã giao hàng';
+      fulfillmentStyle = 'background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0;';
+    }
 
     return `
       <tr>
@@ -1386,10 +1399,13 @@ function renderOrderTable(orders) {
           <div style="font-weight:700; color:#1e293b; font-size:0.9rem;">${o.customerName || 'N/A'}</div>
           <div style="font-size:0.78rem; color:#64748b;">${o.customerEmail || ''}</div>
         </td>
-        <td style="font-size:0.83rem; color:#475569; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
+        <td style="font-size:0.83rem; color:#475569; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
         <td style="font-size:0.8rem; color:#64748b;">${fmtDate(o.orderTime)}</td>
         <td style="text-align:center;">
-          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${statusStyle}">${statusLabel}</span>
+          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${payStyle}">${payLabel}</span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${fulfillmentStyle}">${fulfillmentLabel}</span>
         </td>
         <td style="text-align:center;">
           <button onclick="window.openAdminOrderDetailModal(${o.orderId})"
@@ -1425,6 +1441,15 @@ window.openAdminOrderDetailModal = function (orderId) {
     return d.toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
   };
 
+  // 1. Trạng thái thanh toán (Payment Status)
+  const isVnPay = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
+  const isPaid = o.status === 3 || o.status === 4 || (o.status === 2 && isVnPay);
+  const payLabel = isPaid ? 'Đã thanh toán' : 'Chưa thanh toán';
+  const payStyle = isPaid 
+    ? 'color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0;' 
+    : 'color:#dc2626; background:#fef2f2; border:1px solid #fee2e2;';
+
+  // 2. Trạng thái vận chuyển (Fulfillment Status)
   let statusLabel = 'Đang chuẩn bị hàng';
   let statusStyle = 'color:#d97706; background:#fffbeb; border:1px solid #fde68a;';
   if (o.status === 2) {
@@ -1516,6 +1541,9 @@ window.openAdminOrderDetailModal = function (orderId) {
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
             <span>💳 Phương thức TT:</span> <strong style="color:#0284c7;">${o.payMethod || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>💰 Thanh toán:</span> <strong style="font-size:0.82rem; font-weight:800; padding:2px 8px; border-radius:8px; ${payStyle}">${payLabel}</strong>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span>🏷️ Trạng thái:</span> <strong style="font-size:0.82rem; font-weight:800; padding:2px 8px; border-radius:8px; ${statusStyle}">${statusLabel}</strong>
