@@ -1089,7 +1089,7 @@ async function renderRevenueDashboard() {
     if (res.ok) {
       const json = await res.json();
       if (json.success) {
-        paidOrders = (json.data || []).filter(o => o.status === 3);
+        paidOrders = (json.data || []).filter(o => o.status === 3 || o.status === 4);
       }
     }
   } catch (e) {
@@ -1297,14 +1297,14 @@ window.loadAdminOrders = async function () {
     renderOrderTable(_allAdminOrders);
     updateOrderStats(_allAdminOrders);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">❌ ${err.message}</td></tr>`;
   }
 };
 
 function updateOrderStats(orders) {
   const prep = orders.filter(o => o.status === 1).length;
   const del = orders.filter(o => o.status === 2).length;
-  const done = orders.filter(o => o.status === 3).length;
+  const done = orders.filter(o => o.status === 3 || o.status === 4).length;
   const prepEl = document.getElementById('ord-stat-preparing');
   const delEl = document.getElementById('ord-stat-delivering');
   const doneEl = document.getElementById('ord-stat-done');
@@ -1348,12 +1348,20 @@ function renderOrderTable(orders) {
       (o.customerName || '').toLowerCase().includes(keyword) ||
       (o.customerEmail || '').toLowerCase().includes(keyword) ||
       (o.address || '').toLowerCase().includes(keyword);
-    const matchStatus = !statusFilter || String(o.status) === statusFilter;
-    return matchKw && matchStatus;
+    
+    // Custom filter logic
+    if (!statusFilter) return matchKw;
+    if (statusFilter === '4') {
+      return matchKw && o.status === 4;
+    } else if (statusFilter === '1') {
+      return matchKw && (o.status === 1 || o.status === 3);
+    } else {
+      return matchKw && String(o.status) === statusFilter;
+    }
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">🔍 Không có đơn hàng nào.</td></tr>';
     document.getElementById('orders-pagination').innerHTML = '';
     return;
   }
@@ -1365,22 +1373,11 @@ function renderOrderTable(orders) {
   const pagedOrders = filtered.slice(start, end);
 
   tbody.innerHTML = pagedOrders.map(o => {
-    const statusInfo = getOrderStatusInfo(o.status);
-    const actionBtns = getOrderActionButtons(o);
-    const isVnPay = o.payMethod && o.payMethod.toLowerCase().includes('vnpay');
-    const payBadge = isVnPay
-      ? 'background:#e0f2fe; color:#0369a1;'
-      : 'background:#fef3c7; color:#d97706;';
-
-    // Tính tổng số lượng sản phẩm
-    const totalQty = (o.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const itemCount = (o.items || []).length;
-    const qtyLabel = itemCount > 0
-      ? `${totalQty} sp (${itemCount} loại)`
-      : `0`;
-
-    // Escape items JSON for onclick
-    const itemsJson = JSON.stringify(o.items || []).replace(/"/g, '&quot;');
+    const isDone = o.status === 4;
+    const statusLabel = isDone ? 'Hoàn thành' : 'Chưa hoàn thành';
+    const statusStyle = isDone 
+      ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' 
+      : 'background:#fee2e2; color:#dc2626; border:1px solid #fee2e2;';
 
     return `
       <tr>
@@ -1389,27 +1386,18 @@ function renderOrderTable(orders) {
           <div style="font-weight:700; color:#1e293b; font-size:0.9rem;">${o.customerName || 'N/A'}</div>
           <div style="font-size:0.78rem; color:#64748b;">${o.customerEmail || ''}</div>
         </td>
-        <td style="font-size:0.83rem; color:#475569; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
-        <td><span style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:12px; ${payBadge}">${o.payMethod || 'N/A'}</span></td>
-        <td style="text-align:center;">
-          ${itemCount > 0
-            ? `<button onclick="showOrderItems(event, '${itemsJson}')" title="Xem danh sách sản phẩm"
-                style="background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:20px;
-                       padding:5px 12px; font-size:0.8rem; font-weight:700; cursor:pointer;
-                       box-shadow:0 2px 8px rgba(99,102,241,0.3); transition:all 0.2s;
-                       display:inline-flex; align-items:center; gap:5px;"
-                onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
-                🛒 ${qtyLabel}
-              </button>`
-            : `<span style="color:#94a3b8; font-size:0.82rem;">0</span>`
-          }
-        </td>
-        <td style="font-weight:800; color:#1e293b;">${fmt(o.totalPrice)}</td>
+        <td style="font-size:0.83rem; color:#475569; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${o.address || 'N/A'}</td>
         <td style="font-size:0.8rem; color:#64748b;">${fmtDate(o.orderTime)}</td>
         <td style="text-align:center;">
-          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${statusInfo.style}">${statusInfo.label}</span>
+          <span style="font-size:0.78rem; font-weight:700; padding:5px 12px; border-radius:20px; ${statusStyle}">${statusLabel}</span>
         </td>
-        <td style="text-align:center;">${actionBtns}</td>
+        <td style="text-align:center;">
+          <button onclick="window.openAdminOrderDetailModal(${o.orderId})"
+                  style="padding:6px 14px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(59,130,246,0.3); transition:all 0.2s;"
+                  onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            🔍 Xem chi tiết
+          </button>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1422,27 +1410,156 @@ window.changeOrdersPage = function (page) {
   renderOrderTable();
 };
 
-function getOrderStatusInfo(status) {
-  switch (status) {
-    case 1: return { label: '📦 Đang chuẩn bị', style: 'background:#fef3c7; color:#b45309;' };
-    case 2: return { label: '🚚 Đang giao hàng', style: 'background:#dbeafe; color:#1d4ed8;' };
-    case 3: return { label: '✅ Đã thanh toán', style: 'background:#dcfce7; color:#15803d;' };
-    default: return { label: '❓ Không xác định', style: 'background:#f1f5f9; color:#64748b;' };
-  }
-}
+window.openAdminOrderDetailModal = function (orderId) {
+  const o = _allAdminOrders.find(order => order.orderId === orderId);
+  if (!o) return;
 
-function getOrderActionButtons(o) {
-  if (o.status === 1) {
-    return `<button onclick="window.updateOrderStatus(${o.orderId}, 2)" style="padding:6px 14px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">🚚 Giao hàng</button>`;
-  }
+  // Xóa modal cũ nếu có
+  const existing = document.getElementById('admin-order-detail-modal');
+  if (existing) existing.remove();
+
+  const fmt = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+  const fmtDate = (dt) => {
+    if (!dt) return 'N/A';
+    const d = new Date(dt);
+    return d.toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  };
+
+  let statusLabel = 'Đang chuẩn bị hàng';
+  let statusStyle = 'color:#d97706; background:#fffbeb; border:1px solid #fde68a;';
   if (o.status === 2) {
-    return `<button onclick="window.updateOrderStatus(${o.orderId}, 3)" style="padding:6px 14px; background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">💰 Đã thanh toán</button>`;
+    statusLabel = 'Đang giao hàng';
+    statusStyle = 'color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe;';
+  } else if (o.status === 4) {
+    statusLabel = 'Đã giao hàng';
+    statusStyle = 'color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0;';
   }
-  return '<span style="color:#94a3b8; font-size:0.82rem;">—</span>';
-}
+
+  // Build items HTML
+  const itemsHtml = (o.items || []).map(item => {
+    const img = item.productImage
+      ? `<img src="${item.productImage}" style="width:46px; height:46px; border-radius:10px; object-fit:cover;">`
+      : `<div style="width:46px; height:46px; border-radius:10px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🍎</div>`;
+    const subtotal = item.subtotal || ((item.unitPrice || 0) * (item.quantity || 1));
+    const unitPrice = item.unitPrice || (item.subtotal && item.quantity ? item.subtotal / item.quantity : 0);
+    return `
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
+        ${img}
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:0.9rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${item.productName || item.name || 'Sản phẩm'}
+          </div>
+          <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">
+            Số lượng: <strong>${item.quantity}</strong> × ${fmt(unitPrice)}
+          </div>
+        </div>
+        <div style="font-weight:800; color:#16a34a; font-size:0.9rem;">
+          ${fmt(subtotal)}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Nút hành động bên trong detail modal
+  let actionButtonsHtml = '';
+  if (o.status === 1 || o.status === 3) {
+    actionButtonsHtml = `
+      <button onclick="window.updateOrderStatusAndRefresh(${o.orderId}, 2)"
+              style="padding:10px 18px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; border:none; border-radius:10px; font-size:0.85rem; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(59,130,246,0.3); transition: all 0.2s;">
+        🚚 Giao hàng
+      </button>
+    `;
+  } else if (o.status === 2) {
+    actionButtonsHtml = `
+      <button onclick="window.updateOrderStatusAndRefresh(${o.orderId}, 4)"
+              style="padding:10px 18px; background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; border-radius:10px; font-size:0.85rem; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.3); transition: all 0.2s;">
+        ✅ Đã giao hàng
+      </button>
+    `;
+  } else {
+    actionButtonsHtml = `
+      <span style="font-size:0.88rem; font-weight:700; color:#16a34a;">✨ Đơn hàng đã hoàn thành</span>
+    `;
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'admin-order-detail-modal';
+  modal.style.cssText = `
+    position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px);
+    z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;
+    animation: fadeIn 0.25s ease;
+  `;
+
+  modal.innerHTML = `
+    <div style="background:#fff; width:100%; max-width:520px; border-radius:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden; animation: scaleUp 0.25s ease;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg,#0284c7 0%,#0369a1 100%); padding: 18px 24px; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:800; font-size:1.1rem; letter-spacing:0.5px;">📋 Chi tiết đơn hàng #${o.orderId}</div>
+        <button onclick="window.closeAdminOrderDetailModal()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:1.1rem; cursor:pointer; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <!-- Content -->
+      <div style="padding: 24px; flex:1; overflow-y:auto; max-height:480px;">
+        <!-- Order info -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:16px; margin-bottom:20px; font-size:0.87rem; line-height:1.6; color:#334155;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>👤 Khách hàng:</span> <strong style="color:#0f172a;">${o.customerName || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>📧 Email:</span> <strong style="color:#0f172a;">${o.customerEmail || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>📍 Địa chỉ:</span> <strong style="color:#0f172a;">${o.address || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>🕒 Thời gian đặt:</span> <strong style="color:#0f172a;">${fmtDate(o.orderTime)}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>💳 Phương thức TT:</span> <strong style="color:#0284c7;">${o.payMethod || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>🏷️ Trạng thái:</span> <strong style="font-size:0.82rem; font-weight:800; padding:2px 8px; border-radius:8px; ${statusStyle}">${statusLabel}</strong>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div style="font-weight:800; font-size:0.92rem; color:#0f172a; margin-bottom:8px; display:flex; align-items:center; gap:6px;">🛒 Danh sách sản phẩm</div>
+        <div style="margin-bottom:20px; border-top:1.5px solid #f1f5f9; border-bottom:1.5px solid #f1f5f9; max-height:220px; overflow-y:auto; padding:4px 0;">
+          ${itemsHtml || '<div style="text-align:center; padding:20px; color:#94a3b8;">Không có sản phẩm nào</div>'}
+        </div>
+
+        <!-- Price -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
+          <span style="font-size:0.95rem; font-weight:700; color:#64748b;">Tổng tiền thanh toán:</span>
+          <span style="font-size:1.4rem; font-weight:900; color:#16a34a;">${fmt(o.totalPrice)}</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="background:#f8fafc; border-top:1px solid #f1f5f9; padding:16px 24px; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+        <button onclick="window.closeAdminOrderDetailModal()" style="padding:10px 20px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; font-weight:700; font-size:0.85rem; color:#475569; cursor:pointer;">Đóng</button>
+        ${actionButtonsHtml}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+};
+
+window.closeAdminOrderDetailModal = function () {
+  const modal = document.getElementById('admin-order-detail-modal');
+  if (modal) modal.remove();
+};
+
+window.updateOrderStatusAndRefresh = async function (orderId, newStatus) {
+  // Đóng modal chi tiết trước khi update
+  window.closeAdminOrderDetailModal();
+  // Gọi hàm update của hệ thống
+  await window.updateOrderStatus(orderId, newStatus);
+};
 
 window.updateOrderStatus = async function (orderId, newStatus) {
-  const labels = { 2: 'Giao hàng', 3: 'Đã thanh toán' };
+  const labels = { 2: 'Giao hàng', 3: 'Đã thanh toán', 4: 'Đã giao hàng' };
   if (!confirm(`Xác nhận chuyển đơn hàng #${orderId} sang trạng thái "${labels[newStatus]}"?`)) return;
 
   try {

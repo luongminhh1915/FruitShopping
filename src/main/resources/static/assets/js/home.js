@@ -505,45 +505,28 @@ window.confirmOrderWithPayment = async function () {
     const savedOrder = await saveOrderToDb(orderObj);
     if (!savedOrder) return;
 
-    const token = localStorage.getItem('token');
+    // Cập nhật thông tin để hiển thị đúng trên VietQR / VNPay QR Modal
+    savedOrder.numericTotal = savedOrder.totalPrice; // Số tiền dạng số thực tế từ DB
+    savedOrder.totalPrice = formatPrice(savedOrder.totalPrice); // Định dạng tiền Việt (đ)
+    savedOrder.address = orderObj.address;
+    savedOrder.payMethod = orderObj.payMethod;
+    savedOrder.items = orderObj.items;
+
+    // Lưu lịch sử local dự phòng
     try {
-      showToast('🔄 Đang tạo liên kết thanh toán VNPay...', 'success');
-      const res = await fetch('/api/payment/vnpay/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          orderId: savedOrder.orderId,
-          amount: savedOrder.totalPrice
-        })
-      });
-      const json = await res.json();
-      if (json.paymentUrl) {
-        // Lưu lịch sử local dự phòng
-        try {
-          const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
-          const historyList = historyRaw ? JSON.parse(historyRaw) : [];
-          orderObj.orderId = savedOrder.orderId;
-          historyList.unshift(orderObj);
-          localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
-        } catch (e) { console.error(e); }
+      const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
+      const historyList = historyRaw ? JSON.parse(historyRaw) : [];
+      historyList.unshift(savedOrder);
+      localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
+    } catch (e) { console.error(e); }
 
-        saveCartItems([]);
-        updateCartBadge();
-        closePaymentMethodModal();
-        closeCartModal();
+    saveCartItems([]);
+    updateCartBadge();
+    closePaymentMethodModal();
+    closeCartModal();
 
-        // Chuyển hướng người dùng sang trang thanh toán VNPay
-        window.location.href = json.paymentUrl;
-      } else {
-        showToast('❌ Lỗi tạo link VNPay: ' + (json.message || 'Không xác định'), 'error');
-      }
-    } catch (err) {
-      console.error('Error creating VNPay URL:', err);
-      showToast('❌ Không thể kết nối với cổng thanh toán VNPay!', 'error');
-    }
+    // Hiển thị trực tiếp modal quét QR VNPay/Techcombank cho đơn hàng
+    window.openVnPayQrModal(savedOrder);
   } else {
     // Record COD order history to database
     await saveOrderToDb(orderObj);
@@ -600,13 +583,38 @@ window.closeVnPayQrModal = function () {
 window.simulateVnPaySuccess = async function () {
   if (!_pendingVnPayOrder) return;
 
-  // Record VNPay order history to database
-  await saveOrderToDb(_pendingVnPayOrder);
+  const token = localStorage.getItem('token');
+  try {
+    // Gửi API cập nhật trạng thái đơn hàng thành 3 (Đã thanh toán)
+    const res = await fetch(`/api/orders/${_pendingVnPayOrder.orderId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status: 3 })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      console.error('Lỗi cập nhật trạng thái đơn hàng:', json.message);
+    }
+  } catch (err) {
+    console.error('Không thể kết nối API để cập nhật trạng thái đơn hàng:', err);
+  }
 
   try {
     const historyRaw = localStorage.getItem('USER_ORDER_HISTORY');
-    const historyList = historyRaw ? JSON.parse(historyRaw) : [];
-    historyList.unshift(_pendingVnPayOrder);
+    let historyList = historyRaw ? JSON.parse(historyRaw) : [];
+    // Cập nhật trạng thái trong bộ nhớ local backup
+    _pendingVnPayOrder.status = 3;
+    _pendingVnPayOrder.statusLabel = 'Đã thanh toán';
+    // Tìm và cập nhật item tương ứng nếu đã tồn tại trong historyList
+    const idx = historyList.findIndex(o => o.orderId === _pendingVnPayOrder.orderId);
+    if (idx !== -1) {
+      historyList[idx] = _pendingVnPayOrder;
+    } else {
+      historyList.unshift(_pendingVnPayOrder);
+    }
     localStorage.setItem('USER_ORDER_HISTORY', JSON.stringify(historyList));
   } catch (e) { console.error(e); }
 
@@ -697,14 +705,25 @@ window.filterOrderHistory = function (status) {
   renderOrderHistoryList();
 };
 
-function getStatusInfo(status) {
-  // status: 1=Đang chuẩn bị hàng, 2=Đang giao hàng, 3=Đã thanh toán
-  switch (status) {
-    case 1: return { text: '📦 Đang chuẩn bị hàng', bg: '#fef3c7', color: '#b45309', border: '#fde68a' };
-    case 2: return { text: '🚚 Đang giao hàng',      bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' };
-    case 3: return { text: '✅ Đã thanh toán',        bg: '#dcfce7', color: '#15803d', border: '#bbf7d0' };
-    default: return { text: '❓ Không xác định',      bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' };
+function getStatusInfo(status, payMethod = '') {
+  const isVnPay = payMethod && payMethod.toLowerCase().includes('vnpay');
+  
+  let payment = { text: '💳 Chưa thanh toán', bg: '#fef2f2', color: '#dc2626', border: '#fee2e2' };
+  let fulfillment = { text: '📦 Đang chuẩn bị hàng', bg: '#fffbeb', color: '#b45309', border: '#fde68a' };
+
+  // 1. Trạng thái thanh toán (Payment Status)
+  if (status === 3 || status === 4 || (status === 2 && isVnPay)) {
+    payment = { text: '💳 Đã thanh toán', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' };
   }
+
+  // 2. Trạng thái vận chuyển (Fulfillment Status)
+  if (status === 2) {
+    fulfillment = { text: '🚚 Đang giao hàng', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
+  } else if (status === 4) {
+    fulfillment = { text: '✅ Đã nhận hàng', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' };
+  }
+
+  return { payment, fulfillment };
 }
 
 function renderOrderHistoryList() {
@@ -721,8 +740,8 @@ function renderOrderHistoryList() {
   // Filter theo tab
   const filtered = _cachedOrderHistory.filter(o => {
     if (_currentOhFilter === 'ALL') return true;
-    if (_currentOhFilter === 'PROCESSING') return o.status === 1 || o.status === 2; // chưa giao
-    if (_currentOhFilter === 'DELIVERED')  return o.status === 3;                    // đã thanh toán
+    if (_currentOhFilter === 'PROCESSING') return o.status === 1 || o.status === 2; // đang xử lý/đang giao
+    if (_currentOhFilter === 'DELIVERED')  return o.status === 3 || o.status === 4; // đã thanh toán hoặc đã nhận hàng
     return true;
   });
 
@@ -738,7 +757,7 @@ function renderOrderHistoryList() {
   }
 
   body.innerHTML = filtered.map(order => {
-    const si = getStatusInfo(order.status);
+    const si = getStatusInfo(order.status, order.payMethod);
     const itemsHtml = (order.items || []).map(item => `
       <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f8fafc;">
         <div style="width:36px; height:36px; border-radius:8px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">
@@ -753,13 +772,16 @@ function renderOrderHistoryList() {
     `).join('');
 
     return `
-      <div style="border:1.5px solid ${si.border}; border-radius:14px; margin-bottom:16px; overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-        <div style="padding:12px 16px; background:${si.bg}; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="border:1.5px solid ${si.fulfillment.border}; border-radius:14px; margin-bottom:16px; overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="padding:12px 16px; background:${si.fulfillment.bg}; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div>
             <span style="font-weight:800; color:#1e293b; font-size:0.95rem;">#${order.orderId}</span>
-            <span style="color:#94a3b8; font-size:0.78rem; margin-left:8px;">${fmtDate(order.orderTime)}</span>
+            <span style="color:#64748b; font-size:0.78rem; margin-left:8px; font-weight: 500;">🕒 ${fmtDate(order.orderTime)}</span>
           </div>
-          <span style="font-size:0.8rem; font-weight:700; padding:5px 14px; border-radius:20px; background:#fff; color:${si.color}; border:1.5px solid ${si.border};">${si.text}</span>
+          <div style="display:flex; gap:6px;">
+            <span style="font-size:0.76rem; font-weight:800; padding:4px 10px; border-radius:20px; background:#fff; color:${si.payment.color}; border:1.5px solid ${si.payment.border};">${si.payment.text}</span>
+            <span style="font-size:0.76rem; font-weight:800; padding:4px 10px; border-radius:20px; background:#fff; color:${si.fulfillment.color}; border:1.5px solid ${si.fulfillment.border};">${si.fulfillment.text}</span>
+          </div>
         </div>
         <div style="padding:12px 16px;">
           <div style="font-size:0.82rem; color:#475569; margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap;">

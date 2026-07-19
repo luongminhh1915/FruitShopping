@@ -37,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
             case 1 -> "Đang chuẩn bị hàng";
             case 2 -> "Đang giao hàng";
             case 3 -> "Đã thanh toán";
+            case 4 -> "Đã nhận hàng";
             default -> "Không xác định";
         };
     }
@@ -227,8 +228,8 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) {
             return ApiResponse.error("Không tìm thấy đơn hàng #" + orderId);
         }
-        if (newStatus < 1 || newStatus > 3) {
-            return ApiResponse.error("Trạng thái không hợp lệ. Chỉ chấp nhận 1, 2, 3.");
+        if (newStatus < 1 || newStatus > 4) {
+            return ApiResponse.error("Trạng thái không hợp lệ. Chỉ chấp nhận 1, 2, 3, 4.");
         }
         order.setStatus(newStatus);
         orderRepository.save(order);
